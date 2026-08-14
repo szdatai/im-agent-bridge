@@ -1,5 +1,7 @@
 # IM ↔ Claude Code Bridge
 
+> 中文 | [English](README.en.md)
+
 多通道 IM(企业微信 / 钉钉 / 微信 / 飞书)智能机器人与 **Claude Code 无头 agent**
 的双向桥接进程。
 
@@ -177,24 +179,26 @@ node --input-type=module -e "import('./src/autoregister.mjs').then(m=>m.ensureGl
 
 ```
 im-agent-bridge/
-├── package.json      # type:module;start 脚本
-├── bridge.mjs        # 唯一入口:按 ENABLED_CHANNELS 动态加载通道
+├── package.json          # type:module;start 脚本
+├── bridge.mjs            # 唯一入口:按 ENABLED_CHANNELS 动态加载通道
 ├── scripts/
-│   └── autostart.mjs # 自动启动守卫(端口探测 + detached 拉起)
+│   └── autostart.mjs     # 自动启动守卫(端口探测 + detached 拉起)
+├── public/
+│   └── index.html        # 通道维护页(Web UI)
 ├── src/
-│   ├── config.mjs    # 多通道配置加载 + settings.json 兜底
-│   ├── core.mjs      # 多通道编排:白名单/附件配对/队列/agent/回复
-│   ├── claude.mjs    # askClaude(query 封装)+ 权限门 + 回复清理
-│   ├── queue.mjs     # 每 通道+会话 串行 + 全局并发信号量
-│   ├── health.mjs    # HTTP /health(含各通道状态)
-│   ├── autoregister.mjs # 全局自动启动 hook 自注册
+│   ├── config.mjs        # 多通道配置加载 + settings.json 兜底
+│   ├── core.mjs          # 多通道编排:白名单/附件配对/队列/agent/回复
+│   ├── claude.mjs        # askClaude(query 封装)+ 权限门 + 回复清理
+│   ├── queue.mjs         # 每 通道+会话 串行 + 全局并发信号量
+│   ├── admin.mjs         # 管理 Web 服务器(静态页 + /api/*)
+│   ├── autoregister.mjs  # 全局自动启动 hook 自注册
 │   └── channels/
 │       ├── wecom.mjs     # 企业微信(@wecom/aibot-node-sdk)
 │       ├── dingtalk.mjs  # 钉钉(dingtalk-stream)
 │       ├── wechat.mjs    # 微信(iLink 账号文件)
 │       └── feishu.mjs    # 飞书(@larksuiteoapi/node-sdk)
-├── .env.example      # 配置模板(复制为 .env)
-└── inbox/            # 附件临时落盘(运行时创建,gitignore)
+├── .env.example          # 配置模板(复制为 .env)
+└── inbox/                # 附件临时落盘(运行时创建,gitignore)
 ```
 
 ## License
