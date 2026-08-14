@@ -9,6 +9,9 @@ node_modules/
 # 附件临时目录
 inbox/
 
+# 微信 iLink 账号目录(含 token,敏感)
+wechat-accounts/
+
 # 日志与系统文件
 logs/
 *.log

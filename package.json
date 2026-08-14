@@ -23,7 +23,9 @@
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.3.232",
-    "@wecom/aibot-node-sdk": "^1.0.7"
+    "@larksuiteoapi/node-sdk": "^1.73.0",
+    "@wecom/aibot-node-sdk": "^1.0.7",
+    "dingtalk-stream": "^2.1.6-beta.1"
   },
   "optionalDependencies": {
     "@anthropic-ai/claude-agent-sdk-win32-x64": "^0.3.232"

@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IM 通道维护</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: #11141a; color: #d7dce4; padding: 24px; }
+  .wrap { max-width: 960px; margin: 0 auto; }
+  h1 { font-size: 1.3em; color: #42a5f5; margin-bottom: 4px; }
+  .sub { color: #8892a6; font-size: .82em; margin-bottom: 16px; }
+  .header { background: #1a1f29; border: 1px solid #2a3140; border-radius: 10px; padding: 14px 18px; margin-bottom: 18px;
+    display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+  .hstat { font-size: .8em; color: #aab3c5; }
+  .hstat b { color: #e6eaf2; font-weight: 600; }
+  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+  .dot.conn { background: #4caf50; } .dot.deg { background: #ff9800; }
+  .btn { border: 1px solid #3a4354; background: #232a36; color: #d7dce4; padding: 6px 14px; border-radius: 7px; cursor: pointer; font-size: .82em; }
+  .btn:hover { background: #2c3542; }
+  .btn.primary { background: #1e5fbf; border-color: #2d74d4; }
+  .btn.primary:hover { background: #2569cc; }
+  .btn.danger { background: #8a2f2f; border-color: #a33a3a; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
+  .card { background: #1a1f29; border: 1px solid #2a3140; border-radius: 10px; padding: 16px; }
+  .card.connected { border-color: #2e5c39; }
+  .card h3 { font-size: .95em; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .badge { font-size: .72em; padding: 2px 8px; border-radius: 20px; background: #2a3140; color: #8892a6; }
+  .badge.conn { background: #1f3a28; color: #6fd08a; }
+  .badge.dis { background: #33222a; color: #e08a8a; }
+  .field { margin-bottom: 10px; }
+  .field label { display: block; font-size: .72em; color: #8892a6; margin-bottom: 4px; }
+  .field input { width: 100%; background: #12161d; border: 1px solid #2a3140; color: #d7dce4; border-radius: 6px; padding: 7px 9px; font-size: .82em; }
+  .field input:focus { outline: none; border-color: #2d74d4; }
+  .actions { display: flex; gap: 8px; margin-top: 12px; align-items: center; }
+  .accounts { margin-top: 10px; font-size: .76em; color: #8892a6; }
+  .accounts code { color: #aab3c5; }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1a1f29; border: 1px solid #2a3140;
+    padding: 10px 18px; border-radius: 8px; font-size: .82em; opacity: 0; transition: opacity .25s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+  .help { font-size: .72em; color: #66707f; margin-top: 10px; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>📡 IM 通道维护</h1>
+  <div class="sub">企业微信 / 钉钉 / 微信 / 飞书 ↔ Claude Code 双向通道 · 配置保存后需重启生效</div>
+
+  <div class="header">
+    <div><span class="dot" id="dot"></span><b id="ovStatus">加载中...</b></div>
+    <div class="hstat">运行 <b id="uptime">-</b></div>
+    <div class="hstat">模型 <b id="model">-</b></div>
+    <div class="hstat">队列 <b id="queue">-</b></div>
+    <div style="margin-left:auto"><button class="btn" onclick="saveConfig()">💾 保存配置</button> <button class="btn danger" onclick="restart()">🔄 重启进程</button></div>
+  </div>
+
+  <div class="grid" id="grid">
+    <div class="card" id="card-wecom">
+      <h3>🏢 企业微信 <span class="badge" id="badge-wecom">-</span></h3>
+      <div class="field"><label>BotID</label><input id="wecom-botId" placeholder="长连接 BotID"></div>
+      <div class="field"><label>Secret(留空=不变)</label><input id="wecom-secret" type="password" placeholder=""></div>
+      <div class="field"><label>白名单 userid(逗号分隔)</label><input id="wecom-allowlist" placeholder="LiJianHui"></div>
+      <div class="help">企微后台 → 应用管理 → 智能机器人 → API 模式 → 长连接</div>
+    </div>
+
+    <div class="card" id="card-dingtalk">
+      <h3>🔔 钉钉 <span class="badge" id="badge-dingtalk">-</span></h3>
+      <div class="field"><label>ClientId (AppKey)</label><input id="dingtalk-clientId" placeholder=""></div>
+      <div class="field"><label>ClientSecret (AppSecret,留空=不变)</label><input id="dingtalk-clientSecret" type="password" placeholder=""></div>
+      <div class="field"><label>白名单 userid(逗号分隔)</label><input id="dingtalk-allowlist" placeholder=""></div>
+      <div class="help">钉钉开放平台 → 企业内部应用 → AppKey + AppSecret(Stream 模式)</div>
+    </div>
+
+    <div class="card" id="card-wechat">
+      <h3>💬 微信 iLink <span class="badge" id="badge-wechat">-</span></h3>
+      <div class="field"><label>iLink Base URL</label><input id="wechat-baseUrl" placeholder="https://ilinkai.weixin.qq.com"></div>
+      <div class="field"><label>账号目录</label><input id="wechat-accountsDir" placeholder="留空=项目/wechat-accounts"></div>
+      <div class="field"><label>白名单 wxid(逗号分隔)</label><input id="wechat-allowlist" placeholder=""></div>
+      <div class="accounts" id="wechat-accounts">账号: 加载中...</div>
+      <div class="help">扫码登录生成的账号文件放入账号目录,进程 10s 自动扫描拉起</div>
+    </div>
+
+    <div class="card" id="card-feishu">
+      <h3>📃 飞书 <span class="badge" id="badge-feishu">-</span></h3>
+      <div class="field"><label>App ID</label><input id="feishu-appId" placeholder=""></div>
+      <div class="field"><label>App Secret(留空=不变)</label><input id="feishu-appSecret" type="password" placeholder=""></div>
+      <div class="field"><label>白名单 open_id(逗号分隔)</label><input id="feishu-allowlist" placeholder=""></div>
+      <div class="help">飞书开放平台 → 自建应用;需开通机器人能力并订阅 im.message.receive_v1</div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var CH = ['wecom', 'dingtalk', 'wechat', 'feishu'];
+var LAST_CONFIG = null;
+
+function toast(msg, ms) {
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._t); t._t = setTimeout(function(){ t.classList.remove('show'); }, ms || 2600);
+}
+
+function setBadge(name, status) {
+  var el = document.getElementById('badge-' + name);
+  var card = document.getElementById('card-' + name);
+  var text = '-', cls = '';
+  if (status === 'connected') { text = '🟢 已连接'; cls = 'conn'; card.classList.add('connected'); }
+  else if (status === 'disconnected') { text = '⚪ 未连接'; cls = 'dis'; card.classList.remove('connected'); }
+  else if (status === 'disabled') { text = '⚪ 未启用'; cls = ''; card.classList.remove('connected'); }
+  else if (status === 'skipped') { text = '⚪ 未配置'; cls = ''; card.classList.remove('connected'); }
+  el.textContent = text; el.className = 'badge ' + cls;
+}
+
+function loadStatus() {
+  fetch('/api/status').then(function(r){ return r.json(); }).then(function(d) {
+    var conn = d.status === 'connected';
+    var dot = document.getElementById('dot');
+    dot.className = 'dot ' + (conn ? 'conn' : 'deg');
+    document.getElementById('ovStatus').textContent = conn ? '已连接' : '部分在线';
+    document.getElementById('uptime').textContent = d.uptimeSec + 's';
+    document.getElementById('model').textContent = d.model || '-';
+    document.getElementById('queue').textContent = (d.running || 0) + '/' + (d.queueDepth || 0);
+    CH.forEach(function(c) {
+      setBadge(c, d.channels[c] || 'disabled');
+    });
+    // 跳过未配置通道,但保留状态展示
+    if (LAST_CONFIG) {
+      CH.forEach(function(c) {
+        var el = document.getElementById('badge-' + c);
+        if (el.textContent === '未连接' && LAST_CONFIG.channels && !hasCreds(LAST_CONFIG.channels[c])) {
+          el.textContent = '⚪ 未配置'; el.className = 'badge';
+        }
+      });
+    }
+  }).catch(function(){});
+}
+
+function hasCreds(ch) {
+  if (!ch) return false;
+  return !!(ch.botId || ch.clientId || ch.appId || (ch.baseUrl && ch.baseUrl !== 'https://ilinkai.weixin.qq.com'));
+}
+
+function loadConfig() {
+  fetch('/api/config').then(function(r){ return r.json(); }).then(function(d) {
+    LAST_CONFIG = d;
+    document.getElementById('wecom-botId').value = d.channels.wecom.botId || '';
+    document.getElementById('wecom-secret').placeholder = d.channels.wecom.secretSet ? '已设置(留空不变)' : '未设置';
+    document.getElementById('wecom-allowlist').value = d.channels.wecom.allowlist || '';
+    document.getElementById('dingtalk-clientId').value = d.channels.dingtalk.clientId || '';
+    document.getElementById('dingtalk-clientSecret').placeholder = d.channels.dingtalk.clientSecretSet ? '已设置(留空不变)' : '未设置';
+    document.getElementById('dingtalk-allowlist').value = d.channels.dingtalk.allowlist || '';
+    document.getElementById('wechat-baseUrl').value = d.channels.wechat.baseUrl || 'https://ilinkai.weixin.qq.com';
+    document.getElementById('wechat-accountsDir').value = d.channels.wechat.accountsDir || '';
+    document.getElementById('wechat-allowlist').value = d.channels.wechat.allowlist || '';
+    document.getElementById('feishu-appId').value = d.channels.feishu.appId || '';
+    document.getElementById('feishu-appSecret').placeholder = d.channels.feishu.appSecretSet ? '已设置(留空不变)' : '未设置';
+    document.getElementById('feishu-allowlist').value = d.channels.feishu.allowlist || '';
+    loadWechatAccounts();
+  }).catch(function(){ toast('加载配置失败', 3000); });
+}
+
+function loadWechatAccounts() {
+  fetch('/api/wechat/accounts').then(function(r){ return r.json(); }).then(function(d) {
+    var el = document.getElementById('wechat-accounts');
+    var body = '账号目录: <code>' + d.accountsDir + '</code><br>';
+    body += d.accounts.length ? ('账号: <code>' + d.accounts.join(', ') + '</code>') : '暂无账号(放入账号文件后 10s 自动拉起)';
+    el.innerHTML = body;
+  }).catch(function(){});
+}
+
+function saveConfig() {
+  var payload = { channels: {} };
+  payload.channels.wecom = {
+    botId: v('wecom-botId'), secret: v('wecom-secret'), allowlist: v('wecom-allowlist')
+  };
+  payload.channels.dingtalk = {
+    clientId: v('dingtalk-clientId'), clientSecret: v('dingtalk-clientSecret'), allowlist: v('dingtalk-allowlist')
+  };
+  payload.channels.wechat = {
+    baseUrl: v('wechat-baseUrl'), accountsDir: v('wechat-accountsDir'), allowlist: v('wechat-allowlist')
+  };
+  payload.channels.feishu = {
+    appId: v('feishu-appId'), appSecret: v('feishu-appSecret'), allowlist: v('feishu-allowlist')
+  };
+  fetch('/api/config', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  }).then(function(r){ return r.json(); }).then(function(d) {
+    toast(d.ok ? ('已保存 ' + d.applied + ' 项,重启生效') : ('保存失败: ' + d.error));
+  }).catch(function(){ toast('保存失败: 网络错误', 3000); });
+}
+
+function restart() {
+  if (!confirm('确认重启桥接进程?配置将立即生效。')) return;
+  fetch('/api/restart', { method: 'POST' }).then(function(){ toast('正在重启...'); }).catch(function(){});
+}
+
+function v(id) { return document.getElementById(id).value.trim(); }
+
+loadStatus();
+loadConfig();
+setInterval(loadStatus, 5000);
+</script>
+</body>
+</html>
