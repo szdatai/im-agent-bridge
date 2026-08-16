@@ -52,9 +52,13 @@
     <div class="hstat">运行 <b id="uptime">-</b></div>
     <div class="hstat">模型 <b id="model">-</b></div>
     <div class="hstat">队列 <b id="queue">-</b></div>
-    <label style="font-size:.78em;color:#aab3c5;display:flex;align-items:center;gap:5px;">
-      <input type="checkbox" id="push-progress" onchange="saveConfig()"> 进度推送
-    </label>
+    <div style="font-size:.78em;color:#aab3c5;display:flex;gap:10px;align-items:center;">
+      <span>推送:</span>
+      <label style="display:flex;align-items:center;gap:3px;"><input type="checkbox" id="push-wechat" onchange="saveConfig()">微信</label>
+      <label style="display:flex;align-items:center;gap:3px;"><input type="checkbox" id="push-dingtalk" onchange="saveConfig()">钉钉</label>
+      <label style="display:flex;align-items:center;gap:3px;"><input type="checkbox" id="push-feishu" onchange="saveConfig()">飞书</label>
+      <label style="display:flex;align-items:center;gap:3px;"><input type="checkbox" id="push-progress" onchange="saveConfig()">进度</label>
+    </div>
     <div style="margin-left:auto"><button class="btn" onclick="saveConfig()">💾 保存配置</button> <button class="btn danger" onclick="restart()">🔄 重启进程</button></div>
   </div>
 
@@ -179,6 +183,9 @@ function loadConfig() {
   fetch('/api/config').then(function(r){ return r.json(); }).then(function(d) {
     LAST_CONFIG = d;
     document.getElementById('push-progress').checked = (d.pushProgress === '1');
+    document.getElementById('push-wechat').checked = (d.pushWechat === '1');
+    document.getElementById('push-dingtalk').checked = (d.pushDingtalk === '1');
+    document.getElementById('push-feishu').checked = (d.pushFeishu === '1');
     document.getElementById('wecom-botId').value = d.channels.wecom.botId || '';
     document.getElementById('wecom-secret').placeholder = d.channels.wecom.secretSet ? '已设置(留空不变)' : '未设置';
     document.getElementById('wecom-allowlist').value = d.channels.wecom.allowlist || '';
@@ -259,7 +266,13 @@ function pollWechatLogin(sk) {
 }
 
 function saveConfig() {
-  var payload = { pushProgress: document.getElementById('push-progress').checked ? '1' : '0', channels: {} };
+  var payload = {
+    pushProgress: document.getElementById('push-progress').checked ? '1' : '0',
+    pushWechat: document.getElementById('push-wechat').checked ? '1' : '0',
+    pushDingtalk: document.getElementById('push-dingtalk').checked ? '1' : '0',
+    pushFeishu: document.getElementById('push-feishu').checked ? '1' : '0',
+    channels: {}
+  };
   payload.channels.wecom = {
     botId: v('wecom-botId'), secret: v('wecom-secret'), allowlist: v('wecom-allowlist')
   };

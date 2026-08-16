@@ -72,6 +72,9 @@ function buildConfigView() {
     globalAllowlist: env.ALLOWLIST || '',
     workDir: env.WORK_DIR || '',
     pushProgress: env.PUSH_PROGRESS || '0',
+    pushWechat: env.PUSH_WECHAT !== '0' ? '1' : '0',
+    pushDingtalk: env.PUSH_DINGTALK !== '0' ? '1' : '0',
+    pushFeishu: env.PUSH_FEISHU !== '0' ? '1' : '0',
     channels: {},
   };
   for (const [name, fieldMap] of Object.entries(ENV_MAP)) {
@@ -91,7 +94,12 @@ function applyConfig(body) {
   if (typeof body.enabledChannels === 'string') updates.ENABLED_CHANNELS = body.enabledChannels.trim();
   if (typeof body.globalAllowlist === 'string') updates.ALLOWLIST = body.globalAllowlist.trim();
   if (typeof body.workDir === 'string' && body.workDir.trim()) updates.WORK_DIR = body.workDir.trim();
-  if (body.pushProgress !== undefined) updates.PUSH_PROGRESS = body.pushProgress ? '1' : '0';
+  // 字符串 '0'/'1' 或布尔都要正确处理(字符串 '0' 是真值,不能直接 if(v))
+  const bool = (v) => v === '1' || v === true || v === 1;
+  if (body.pushProgress !== undefined) updates.PUSH_PROGRESS = bool(body.pushProgress) ? '1' : '0';
+  if (body.pushWechat !== undefined) updates.PUSH_WECHAT = bool(body.pushWechat) ? '1' : '0';
+  if (body.pushDingtalk !== undefined) updates.PUSH_DINGTALK = bool(body.pushDingtalk) ? '1' : '0';
+  if (body.pushFeishu !== undefined) updates.PUSH_FEISHU = bool(body.pushFeishu) ? '1' : '0';
   for (const [name, fieldMap] of Object.entries(ENV_MAP)) {
     if (!fieldMap || typeof fieldMap === 'string') continue;
     const ch = body.channels?.[name];
@@ -264,6 +272,9 @@ export function startAdminServer({ cfg: _cfg, core, model, agentLabel, port }) {
         if (!text) { sendJson({ ok: false, error: 'text required' }, 400); return; }
         if (kind === 'progress' && env.PUSH_PROGRESS !== '1') {
           sendJson({ ok: true, note: '进度推送未开启' }); return;
+        }
+        if (env['PUSH_' + channelName.toUpperCase()] === '0') {
+          sendJson({ ok: true, note: channelName + ' 推送已停用' }); return;
         }
         if (!to) { sendJson({ ok: true, note: '未配置推送目标(' + channelName + '),跳过' }); return; }
         const ch = core.channels.get(channelName);

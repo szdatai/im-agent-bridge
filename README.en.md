@@ -210,8 +210,9 @@ Start a Claude Code task in the terminal, leave your desk — stay on top of pro
 | `PUSH_FEISHU_TO` | Result push target Feishu receive_id (chat_id / open_id) |
 | `WECOM_WEBHOOK_URL` | WeCom group robot webhook (in settings.json env) |
 | `PUSH_PROGRESS` | Progress push switch: `1` = on (toggled from the admin page) |
+| `PUSH_WECHAT` / `PUSH_DINGTALK` / `PUSH_FEISHU` | Per-channel result push switch: `1` = on (toggled from the admin page) |
 
-Channels without a configured target are skipped; every push carries a `[HH:MM]` timestamp.
+Channels without a configured target are skipped; every push carries a `[HH:MM]` timestamp. The WeChat/DingTalk/Feishu/Progress toggles live in the admin page's "推送" group.
 
 ### Two additional pushes
 

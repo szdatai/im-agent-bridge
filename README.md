@@ -222,8 +222,9 @@ node --input-type=module -e "import('./src/autoregister.mjs').then(m=>m.ensureGl
 | `PUSH_FEISHU_TO` | 结果推送目标飞书 receive_id(chat_id / open_id) |
 | `WECOM_WEBHOOK_URL` | 企微群机器人 webhook(在 settings.json 环境) |
 | `PUSH_PROGRESS` | 进度推送开关:`1`=开(维护页可切换) |
+| `PUSH_WECHAT` / `PUSH_DINGTALK` / `PUSH_FEISHU` | 各通道结果推送开关:`1`=开(维护页可切换) |
 
-未填目标的通道自动跳过;所有推送统一带 `[HH:MM]` 时间戳。
+未填目标的通道自动跳过;所有推送统一带 `[HH:MM]` 时间戳;微信/钉钉/飞书/进度开关都在维护页「推送」组里切换。
 
 ### 两种补充推送
 
