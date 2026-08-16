@@ -104,5 +104,19 @@ export function createChannel({ cfg, core }) {
     return isConnected ? 'connected' : 'disconnected';
   }
 
-  return { name, enabled, start, stop, status };
+  // 主动推送:向指定 receive_id(chat_id/open_id)发消息
+  async function send(to, text) {
+    if (!client) return { ok: false, error: '飞书未连接' };
+    try {
+      await client.im.v1.message.create({
+        params: { receive_id_type: 'chat_id' },
+        data: { receive_id: to, msg_type: 'text', content: JSON.stringify({ text }) },
+      });
+      return { ok: true, note: '已发送到 ' + to };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  }
+
+  return { name, enabled, start, stop, status, send };
 }

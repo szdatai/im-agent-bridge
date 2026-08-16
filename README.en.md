@@ -188,24 +188,30 @@ node scripts/autostart.mjs   # launch the bridge
 node --input-type=module -e "import('./src/autoregister.mjs').then(m=>m.ensureGlobalAutoStart().then(r=>console.log(r.reason)))"
 ```
 
-## CLI ↔ WeChat Remote Control
+## CLI ↔ IM Remote Control
 
-Start a Claude Code task in the terminal, leave your desk — stay on top of progress and results from WeChat (pushed via the bridge + WeChat channel).
+Start a Claude Code task in the terminal, leave your desk — stay on top of progress and results from your IM (WeChat / WeCom / DingTalk / Feishu), pushed via the bridge + each channel.
 
 ### Three kinds of push
 
 | Type | Trigger | Example | Toggle |
 |---|---|---|---|
-| Result push | Session ends (Stop / StopFailure hook) | `【Claude Code 完成 14:30】…final result summary…` | Always on |
-| Progress push | Key tool calls during a task (PostToolUse hook) | `【进行中】📝 src/foo.py`, `【进行中】⚙️ npm test` | Admin page "进度推送" switch (`PUSH_PROGRESS`) |
+| Result push | Session ends (Stop / StopFailure hook, `push-claude-all.mjs`) | `[14:30] 【Claude Code 完成】…final result summary…` | Always on; target = configured PUSH_* channels |
+| Progress push | Key tool calls during a task (PostToolUse hook) | `[14:32] 【进行中】📝 src/foo.py`, `[14:33] ⚙️ npm test` | Admin page "进度推送" switch (`PUSH_PROGRESS`) |
 | Decision alert | Claude asks / requests permission (AskUserQuestion / PermissionRequest hook) | `⚠️ Claude Code 需要你决策:continue modifying…? Options: continue / undo` | Always on |
 
 ### Config
 
 | Variable | Description |
 |---|---|
-| `PUSH_TO` | Target WeChat wxid for pushes (required) |
+| `PUSH_TO` | Result push target WeChat wxid |
+| `PUSH_DINGTALK_CONV_ID` | Result push target DingTalk openConversationId |
+| `PUSH_DINGTALK_ROBOT_CODE` | DingTalk robot code (required to send) |
+| `PUSH_FEISHU_TO` | Result push target Feishu receive_id (chat_id / open_id) |
+| `WECOM_WEBHOOK_URL` | WeCom group robot webhook (in settings.json env) |
 | `PUSH_PROGRESS` | Progress push switch: `1` = on (toggled from the admin page) |
+
+Channels without a configured target are skipped; every push carries a `[HH:MM]` timestamp.
 
 ### Two additional pushes
 

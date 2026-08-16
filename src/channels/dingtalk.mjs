@@ -152,5 +152,28 @@ export function createChannel({ cfg, core }) {
     return (client && client.connected) ? 'connected' : 'disconnected';
   }
 
-  return { name, enabled, start, stop, status };
+  // 主动推送:向指定 openConversationId 发消息(需 robotCode)
+  async function send(to, text, robotCode) {
+    if (!client) return { ok: false, error: '钉钉未连接' };
+    try {
+      const accessToken = await client.getAccessToken();
+      const resp = await fetch('https://api.dingtalk.com/v1.0/robot/robotMessages/robotMessagesSend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-acs-dingtalk-access-token': accessToken },
+        body: JSON.stringify({
+          msgParam: JSON.stringify({ content: text }),
+          msgKey: 'sampleText',
+          openConversationId: to,
+          robotCode: robotCode || '',
+        }),
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!resp.ok) return { ok: false, error: '钉钉发送失败: HTTP ' + resp.status };
+      return { ok: true, note: '已发送到 ' + to };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  }
+
+  return { name, enabled, start, stop, status, send };
 }

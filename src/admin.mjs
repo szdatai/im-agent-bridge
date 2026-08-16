@@ -254,16 +254,22 @@ export function startAdminServer({ cfg: _cfg, core, model, agentLabel, port }) {
         const ts = new Date();
         const hhmm = String(ts.getHours()).padStart(2, '0') + ':' + String(ts.getMinutes()).padStart(2, '0');
         const text = '[' + hhmm + '] ' + String(body.text || '').trim();
-        const to = String(body.to || '').trim() || readDotEnv().PUSH_TO || '';
+        const channelName = (body.channel === 'dingtalk' || body.channel === 'feishu') ? body.channel : 'wechat';
+        const env = readDotEnv();
+        const defaultTo = channelName === 'dingtalk' ? env.PUSH_DINGTALK_CONV_ID
+          : channelName === 'feishu' ? env.PUSH_FEISHU_TO
+          : env.PUSH_TO;
+        const to = String(body.to || '').trim() || defaultTo || '';
         const kind = body.kind === 'progress' ? 'progress' : 'result';
         if (!text) { sendJson({ ok: false, error: 'text required' }, 400); return; }
-        if (kind === 'progress' && readDotEnv().PUSH_PROGRESS !== '1') {
+        if (kind === 'progress' && env.PUSH_PROGRESS !== '1') {
           sendJson({ ok: true, note: '进度推送未开启' }); return;
         }
-        if (!to) { sendJson({ ok: false, error: '未配置 PUSH_TO,请设置推送目标 wxid' }); return; }
-        const wc = core.channels.get('wechat');
-        if (!wc || typeof wc.send !== 'function') { sendJson({ ok: false, error: '微信通道未启用' }); return; }
-        const r = await wc.send(to, text);
+        if (!to) { sendJson({ ok: true, note: '未配置推送目标(' + channelName + '),跳过' }); return; }
+        const ch = core.channels.get(channelName);
+        if (!ch || typeof ch.send !== 'function') { sendJson({ ok: true, note: '通道 ' + channelName + ' 未启用,跳过' }); return; }
+        const robotCode = channelName === 'dingtalk' ? (body.robotCode || env.PUSH_DINGTALK_ROBOT_CODE) : undefined;
+        const r = await ch.send(to, text, robotCode);
         sendJson({ ok: true, ...r });
         return;
       }

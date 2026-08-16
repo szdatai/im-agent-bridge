@@ -200,24 +200,30 @@ node scripts/autostart.mjs   # 拉起 bridge
 node --input-type=module -e "import('./src/autoregister.mjs').then(m=>m.ensureGlobalAutoStart().then(r=>console.log(r.reason)))"
 ```
 
-## CLI ↔ 微信 远程掌控
+## CLI ↔ IM 远程掌控
 
-在终端启动 Claude Code 任务后离开电脑,微信实时掌控进度与结果(经 bridge + 微信通道推送)。
+在终端启动 Claude Code 任务后离开电脑,IM(微信/企微/钉钉/飞书)实时掌控进度与结果(经 bridge + 各通道推送)。
 
 ### 三类推送
 
 | 类型 | 触发 | 内容示例 | 开关 |
 |---|---|---|---|
-| 结果推送 | 会话结束(Stop / StopFailure hook) | `【Claude Code 完成 14:30】…最终结果摘要…` | 常开 |
-| 进度推送 | 进行中关键工具调用(PostToolUse hook) | `【进行中】📝 src/foo.py`、`【进行中】⚙️ npm test` | 维护页「进度推送」开关(`PUSH_PROGRESS`) |
+| 结果推送 | 会话结束(Stop / StopFailure hook,`push-claude-all.mjs`) | `[14:30] 【Claude Code 完成】…最终结果摘要…` | 常开;目标 = 已配置的 PUSH_* 通道 |
+| 进度推送 | 进行中关键工具调用(PostToolUse hook) | `[14:32] 【进行中】📝 src/foo.py`、`[14:33] ⚙️ npm test` | 维护页「进度推送」开关(`PUSH_PROGRESS`) |
 | 决策提醒 | Claude 提问 / 请求授权(AskUserQuestion / PermissionRequest hook) | `⚠️ Claude Code 需要你决策:是否继续修改…? 选项:继续 / 撤销` | 常开 |
 
 ### 配置
 
 | 变量 | 说明 |
 |---|---|
-| `PUSH_TO` | 推送目标微信 wxid(必填) |
+| `PUSH_TO` | 结果推送目标微信 wxid |
+| `PUSH_DINGTALK_CONV_ID` | 结果推送目标钉钉 openConversationId |
+| `PUSH_DINGTALK_ROBOT_CODE` | 钉钉机器人编码(发送所需) |
+| `PUSH_FEISHU_TO` | 结果推送目标飞书 receive_id(chat_id / open_id) |
+| `WECOM_WEBHOOK_URL` | 企微群机器人 webhook(在 settings.json 环境) |
 | `PUSH_PROGRESS` | 进度推送开关:`1`=开(维护页可切换) |
+
+未填目标的通道自动跳过;所有推送统一带 `[HH:MM]` 时间戳。
 
 ### 两种补充推送
 
