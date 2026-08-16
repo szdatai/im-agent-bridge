@@ -71,6 +71,7 @@ function buildConfigView() {
     enabledChannels: env.ENABLED_CHANNELS || 'wecom',
     globalAllowlist: env.ALLOWLIST || '',
     workDir: env.WORK_DIR || '',
+    pushProgress: env.PUSH_PROGRESS || '0',
     channels: {},
   };
   for (const [name, fieldMap] of Object.entries(ENV_MAP)) {
@@ -90,6 +91,7 @@ function applyConfig(body) {
   if (typeof body.enabledChannels === 'string') updates.ENABLED_CHANNELS = body.enabledChannels.trim();
   if (typeof body.globalAllowlist === 'string') updates.ALLOWLIST = body.globalAllowlist.trim();
   if (typeof body.workDir === 'string' && body.workDir.trim()) updates.WORK_DIR = body.workDir.trim();
+  if (body.pushProgress !== undefined) updates.PUSH_PROGRESS = body.pushProgress ? '1' : '0';
   for (const [name, fieldMap] of Object.entries(ENV_MAP)) {
     if (!fieldMap || typeof fieldMap === 'string') continue;
     const ch = body.channels?.[name];
@@ -250,7 +252,11 @@ export function startAdminServer({ cfg: _cfg, core, model, agentLabel, port }) {
         const body = JSON.parse(await readBody(req));
         const text = String(body.text || '').trim();
         const to = String(body.to || '').trim() || readDotEnv().PUSH_TO || '';
+        const kind = body.kind === 'progress' ? 'progress' : 'result';
         if (!text) { sendJson({ ok: false, error: 'text required' }, 400); return; }
+        if (kind === 'progress' && readDotEnv().PUSH_PROGRESS !== '1') {
+          sendJson({ ok: true, note: '进度推送未开启' }); return;
+        }
         if (!to) { sendJson({ ok: false, error: '未配置 PUSH_TO,请设置推送目标 wxid' }); return; }
         const wc = core.channels.get('wechat');
         if (!wc || typeof wc.send !== 'function') { sendJson({ ok: false, error: '微信通道未启用' }); return; }
