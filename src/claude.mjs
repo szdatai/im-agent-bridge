@@ -81,10 +81,12 @@ export async function askClaude(prompt, {
   systemPrompt,
   anthropicEnv,
   abortController,
+  resumeSessionId,
 }) {
   const timer = setTimeout(() => abortController.abort(), timeoutMs);
   try {
     let finalText = null;
+    let sessionId = null;
     const gen = query({
       prompt,
       options: {
@@ -92,6 +94,8 @@ export async function askClaude(prompt, {
         model,
         permissionMode,
         maxTurns,
+        // 会话续接:resume 指定 session_id,让同一会话保持上下文(桥接层会话记忆)
+        ...(resumeSessionId ? { resume: resumeSessionId } : {}),
         // options.env 会整体替换子进程环境,必须展开 ...process.env 保留 PATH(Windows)
         // IM_AGENT_BRIDGE 标记:让 CLI 结果推送 hook 跳过 bridge 内部的 agent 会话(防回推/防刷屏)
         env: { ...process.env, ...anthropicEnv, ANTHROPIC_MODEL: model, IM_AGENT_BRIDGE: '1' },
@@ -105,23 +109,24 @@ export async function askClaude(prompt, {
 
     for await (const msg of gen) {
       if (msg.type === 'result') {
+        sessionId = msg.session_id || null;
         if (msg.subtype === 'success') finalText = msg.result;
         break;
       }
     }
 
-    if (finalText === null) return '[错误] Claude Code 未返回结果(可能达到轮数上限或中断)';
-    return finalText;
+    if (finalText === null) return { text: '[错误] Claude Code 未返回结果(可能达到轮数上限或中断)', sessionId };
+    return { text: finalText, sessionId };
   } catch (err) {
     if (abortController.signal.aborted) {
-      return '[错误] 处理超时(>' + Math.round(timeoutMs / 1000) + 's),已终止';
+      return { text: '[错误] 处理超时(>' + Math.round(timeoutMs / 1000) + 's),已终止', sessionId: null };
     }
     const msg = String(err?.message || err);
     if (/reached maximum number of turns|max.*turns/i.test(msg)) {
-      return '[错误] 达到最大轮数上限(' + maxTurns + ')';
+      return { text: '[错误] 达到最大轮数上限(' + maxTurns + ')', sessionId: null };
     }
     console.error('[claude] agent 调用失败: ' + msg);
-    return '[错误] Claude Code 不可用: ' + msg.slice(0, 200);
+    return { text: '[错误] Claude Code 不可用: ' + msg.slice(0, 200), sessionId: null };
   } finally {
     clearTimeout(timer);
   }

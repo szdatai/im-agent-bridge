@@ -22,6 +22,7 @@ const PENDING_FILE_TTL_MS = 30000;
 export function createCore({ cfg: initialCfg, anthropicEnv, model, inboxDir, channelFactories = {}, reloadConfig }) {
   let cfg = initialCfg; // 可运行时重载(维护页保存配置后)
   const pendingFiles = new Map(); // key = channel:senderId
+  const sessions = new Map(); // key = channel:senderId -> Claude session_id(会话记忆)
   const activeAborts = new Set();
   const channels = new Map();
 
@@ -96,10 +97,11 @@ export function createCore({ cfg: initialCfg, anthropicEnv, model, inboxDir, cha
   // ── 队列任务:调 agent → 清理 → 截断 → 一次性回复 ──
   async function processTask(task) {
     const { msg, prompt } = task;
+    const sessionKey = msg.channel + ':' + msg.senderId; // 每 通道+用户 一个会话
     const ac = new AbortController();
     activeAborts.add(ac);
     try {
-      const raw = await askClaude(prompt, {
+      const result = await askClaude(prompt, {
         cwd: cfg.workDir,
         model,
         permissionMode: cfg.permissionMode,
@@ -109,11 +111,13 @@ export function createCore({ cfg: initialCfg, anthropicEnv, model, inboxDir, cha
         systemPrompt: cfg.systemPrompt,
         anthropicEnv,
         abortController: ac,
+        resumeSessionId: sessions.get(sessionKey), // 续接上下文
       });
+      if (result.sessionId) sessions.set(sessionKey, result.sessionId); // 记住会话
       // 回复统一带 [HH:MM] 时间戳(与推送一致)
       const ts = new Date();
       const hhmm = String(ts.getHours()).padStart(2, '0') + ':' + String(ts.getMinutes()).padStart(2, '0');
-      const reply = '[' + hhmm + '] ' + truncateUtf8(cleanAiResponse(raw), cfg.maxReplyBytes);
+      const reply = '[' + hhmm + '] ' + truncateUtf8(cleanAiResponse(result.text), cfg.maxReplyBytes);
       (msg.log || console.log)('[' + msg.channel + '] 回复: ' + reply.slice(0, 60) + '...');
       await msg.reply(reply);
       // 方案1:IM 任务完成 → 自动推送到 PUSH_TO(微信),带来源;fire-and-forget
