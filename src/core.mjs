@@ -143,7 +143,8 @@ export function createCore({ cfg: initialCfg, anthropicEnv, model, inboxDir, pro
       (msg.log || console.log)('[' + msg.channel + '] 回复: ' + reply.slice(0, 60) + '...');
       await msg.reply(reply);
       // 方案1:IM 任务完成 → 自动推送到 PUSH_TO(微信),带来源;fire-and-forget
-      if (cfg.pushTo) {
+      // PUSH_IM_RESULT 开关控制;来源本身就是微信时跳过(回复已到该会话,避免重复两条)
+      if (cfg.pushImResult && cfg.pushTo && msg.channel !== 'wechat') {
         const wc = channels.get('wechat');
         if (wc && typeof wc.send === 'function') {
           const summary = reply.replace(/\s+/g, ' ').trim().slice(0, 200);

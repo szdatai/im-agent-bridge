@@ -85,6 +85,7 @@ function buildConfig() {
     globalAllowlist: splitList(pick('', 'ALLOWLIST')),
     pushTo: pick('', 'PUSH_TO'), // CLI 结果推送目标(微信 wxid)
     pushProgress: pick('', 'PUSH_PROGRESS') === '1', // CLI 进行中进度推送开关
+    pushImResult: pick('', 'PUSH_IM_RESULT') !== '0', // IM 任务完成推送开关(方案1)
     pushWecomTo: pick('', 'PUSH_WECOM_TO'), // 企微推送目标 userid
     pushDingtalkConvId: pick('', 'PUSH_DINGTALK_CONV_ID'), // 钉钉推送目标
     pushDingtalkRobotCode: pick('', 'PUSH_DINGTALK_ROBOT_CODE'), // 钉钉机器人编码

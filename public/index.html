@@ -59,6 +59,7 @@
       <label style="display:flex;align-items:center;gap:3px;"><input type="checkbox" id="push-feishu" onchange="saveConfig()">飞书</label>
       <label style="display:flex;align-items:center;gap:3px;"><input type="checkbox" id="push-wecom" onchange="saveConfig()">企微</label>
       <label style="display:flex;align-items:center;gap:3px;"><input type="checkbox" id="push-progress" onchange="saveConfig()">进度</label>
+      <label style="display:flex;align-items:center;gap:3px;"><input type="checkbox" id="push-imresult" onchange="saveConfig()">IM结果</label>
     </div>
     <div style="margin-left:auto"><button class="btn" onclick="saveConfig()">💾 保存配置</button> <button class="btn danger" onclick="restart()">🔄 重启进程</button></div>
   </div>
@@ -184,6 +185,7 @@ function loadConfig() {
   fetch('/api/config').then(function(r){ return r.json(); }).then(function(d) {
     LAST_CONFIG = d;
     document.getElementById('push-progress').checked = (d.pushProgress === '1');
+    document.getElementById('push-imresult').checked = (d.pushImResult === '1');
     document.getElementById('push-wechat').checked = (d.pushWechat === '1');
     document.getElementById('push-dingtalk').checked = (d.pushDingtalk === '1');
     document.getElementById('push-feishu').checked = (d.pushFeishu === '1');
@@ -270,6 +272,7 @@ function pollWechatLogin(sk) {
 function saveConfig() {
   var payload = {
     pushProgress: document.getElementById('push-progress').checked ? '1' : '0',
+    pushImResult: document.getElementById('push-imresult').checked ? '1' : '0',
     pushWechat: document.getElementById('push-wechat').checked ? '1' : '0',
     pushDingtalk: document.getElementById('push-dingtalk').checked ? '1' : '0',
     pushFeishu: document.getElementById('push-feishu').checked ? '1' : '0',
