@@ -218,7 +218,9 @@ export function createChannel({ cfg, core }) {
               if (!userText && !attachment) continue;
               accLog(this.acc.id, '收到消息: ' + userText.slice(0, 60) + (attachment ? ' (+附件)' : ''));
 
-              await core.handleMessage({
+              // 异步处理消息,不阻塞轮询:agent 调用可能耗时较长,
+              // 若轮询被阻塞,getupdates 空档变长会导致 iLink 会话空闲超时(-14)
+              core.handleMessage({
                 channel: name,
                 senderId: msg.from_user_id || 'unknown',
                 chatId: msg.from_user_id || 'unknown',
@@ -227,7 +229,7 @@ export function createChannel({ cfg, core }) {
                 attachment,
                 reply: (content) => this.sendMsg(msg.from_user_id, msg.context_token || '', content),
                 log: (m) => accLog(this.acc.id, m),
-              });
+              }).catch((e) => accLog(this.acc.id, '处理消息异常: ' + e.message));
             }
           }
         }
