@@ -12,6 +12,9 @@ inbox/
 # 微信 iLink 账号目录(含 token,敏感)
 wechat-accounts/
 
+# 运行时状态(会话记忆等)
+state/
+
 # 日志与系统文件
 logs/
 *.log

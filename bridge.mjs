@@ -57,7 +57,7 @@ if (!anthropicEnv.ANTHROPIC_BASE_URL || !anthropicEnv.ANTHROPIC_AUTH_TOKEN) {
 }
 
 // ── 核心编排 ──
-const core = createCore({ cfg: CFG, anthropicEnv, model, inboxDir: INBOX_DIR, channelFactories, reloadConfig });
+const core = createCore({ cfg: CFG, anthropicEnv, model, inboxDir: INBOX_DIR, projectDir: BRIDGE_DIR, channelFactories, reloadConfig });
 
 // ── 按 ENABLED_CHANNELS 加载通道 ──
 let enabledCount = 0;

@@ -19,10 +19,29 @@ import { askClaude, cleanAiResponse, truncateUtf8 } from './claude.mjs';
 
 const PENDING_FILE_TTL_MS = 30000;
 
-export function createCore({ cfg: initialCfg, anthropicEnv, model, inboxDir, channelFactories = {}, reloadConfig }) {
+export function createCore({ cfg: initialCfg, anthropicEnv, model, inboxDir, projectDir, channelFactories = {}, reloadConfig }) {
   let cfg = initialCfg; // 可运行时重载(维护页保存配置后)
   const pendingFiles = new Map(); // key = channel:senderId
   const sessions = new Map(); // key = channel:senderId -> Claude session_id(会话记忆)
+  const STATE_FILE = path.join(projectDir || process.cwd(), 'state', 'sessions.json');
+
+  // 会话持久化:启动加载 + 更新后防抖落盘
+  try {
+    const saved = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
+    for (const [k, v] of Object.entries(saved)) {
+      if (typeof v === 'string' && v) sessions.set(k, v);
+    }
+  } catch {}
+  let saveTimer = null;
+  function saveSessions() {
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      try {
+        fs.mkdirSync(path.dirname(STATE_FILE), { recursive: true });
+        fs.writeFileSync(STATE_FILE, JSON.stringify(Object.fromEntries(sessions), null, 2), 'utf8');
+      } catch {}
+    }, 1000);
+  }
   const activeAborts = new Set();
   const channels = new Map();
 
@@ -113,7 +132,10 @@ export function createCore({ cfg: initialCfg, anthropicEnv, model, inboxDir, cha
         abortController: ac,
         resumeSessionId: sessions.get(sessionKey), // 续接上下文
       });
-      if (result.sessionId) sessions.set(sessionKey, result.sessionId); // 记住会话
+      if (result.sessionId) {
+        sessions.set(sessionKey, result.sessionId); // 记住会话
+        saveSessions();
+      }
       // 回复统一带 [HH:MM] 时间戳(与推送一致)
       const ts = new Date();
       const hhmm = String(ts.getHours()).padStart(2, '0') + ':' + String(ts.getMinutes()).padStart(2, '0');
