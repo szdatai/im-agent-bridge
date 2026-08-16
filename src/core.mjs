@@ -110,7 +110,10 @@ export function createCore({ cfg: initialCfg, anthropicEnv, model, inboxDir, cha
         anthropicEnv,
         abortController: ac,
       });
-      const reply = truncateUtf8(cleanAiResponse(raw), cfg.maxReplyBytes);
+      // 回复统一带 [HH:MM] 时间戳(与推送一致)
+      const ts = new Date();
+      const hhmm = String(ts.getHours()).padStart(2, '0') + ':' + String(ts.getMinutes()).padStart(2, '0');
+      const reply = '[' + hhmm + '] ' + truncateUtf8(cleanAiResponse(raw), cfg.maxReplyBytes);
       (msg.log || console.log)('[' + msg.channel + '] 回复: ' + reply.slice(0, 60) + '...');
       await msg.reply(reply);
       // 方案1:IM 任务完成 → 自动推送到 PUSH_TO(微信),带来源;fire-and-forget
