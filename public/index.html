@@ -61,6 +61,10 @@
       <div class="field"><label>BotID</label><input id="wecom-botId" placeholder="长连接 BotID"></div>
       <div class="field"><label>Secret(留空=不变)</label><input id="wecom-secret" type="password" placeholder=""></div>
       <div class="field"><label>白名单 userid(逗号分隔)</label><input id="wecom-allowlist" placeholder="LiJianHui"></div>
+      <div class="actions">
+        <button class="btn" onclick="channelAction('wecom','start')" id="btnStart-wecom" disabled>▶ 启动</button>
+        <button class="btn danger" onclick="channelAction('wecom','stop')" id="btnStop-wecom" disabled>⏹ 停止</button>
+      </div>
       <div class="help">企微后台 → 应用管理 → 智能机器人 → API 模式 → 长连接</div>
     </div>
 
@@ -69,6 +73,10 @@
       <div class="field"><label>ClientId (AppKey)</label><input id="dingtalk-clientId" placeholder=""></div>
       <div class="field"><label>ClientSecret (AppSecret,留空=不变)</label><input id="dingtalk-clientSecret" type="password" placeholder=""></div>
       <div class="field"><label>白名单 userid(逗号分隔)</label><input id="dingtalk-allowlist" placeholder=""></div>
+      <div class="actions">
+        <button class="btn" onclick="channelAction('dingtalk','start')" id="btnStart-dingtalk" disabled>▶ 启动</button>
+        <button class="btn danger" onclick="channelAction('dingtalk','stop')" id="btnStop-dingtalk" disabled>⏹ 停止</button>
+      </div>
       <div class="help">钉钉开放平台 → 企业内部应用 → AppKey + AppSecret(Stream 模式)</div>
     </div>
 
@@ -77,8 +85,19 @@
       <div class="field"><label>iLink Base URL</label><input id="wechat-baseUrl" placeholder="https://ilinkai.weixin.qq.com"></div>
       <div class="field"><label>账号目录</label><input id="wechat-accountsDir" placeholder="留空=项目/wechat-accounts"></div>
       <div class="field"><label>白名单 wxid(逗号分隔)</label><input id="wechat-allowlist" placeholder=""></div>
+      <div class="field">
+        <label>扫码登录(生成账号文件)</label>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button class="btn primary" onclick="startWechatLogin()" id="wechatLoginBtn">📱 扫码登录</button>
+          <button class="btn" onclick="cancelWechatLogin()" id="wechatCancelBtn" style="display:none;">✖ 取消</button>
+        </div>
+        <div id="wechatQrArea" style="display:none;text-align:center;margin-top:10px;">
+          <img id="wechatQrImg" style="width:200px;height:200px;border-radius:8px;background:#fff;" alt="微信登录二维码">
+          <div id="wechatQrStatus" style="font-size:.72em;color:#8892a6;margin-top:6px;">请使用微信扫码登录(5 分钟内有效)</div>
+        </div>
+      </div>
       <div class="accounts" id="wechat-accounts">账号: 加载中...</div>
-      <div class="help">扫码登录生成的账号文件放入账号目录,进程 10s 自动扫描拉起</div>
+      <div class="help">扫码确认后自动生成账号文件并保存;进程 10s 扫描账号目录自动拉起</div>
     </div>
 
     <div class="card" id="card-feishu">
@@ -86,6 +105,10 @@
       <div class="field"><label>App ID</label><input id="feishu-appId" placeholder=""></div>
       <div class="field"><label>App Secret(留空=不变)</label><input id="feishu-appSecret" type="password" placeholder=""></div>
       <div class="field"><label>白名单 open_id(逗号分隔)</label><input id="feishu-allowlist" placeholder=""></div>
+      <div class="actions">
+        <button class="btn" onclick="channelAction('feishu','start')" id="btnStart-feishu" disabled>▶ 启动</button>
+        <button class="btn danger" onclick="channelAction('feishu','stop')" id="btnStop-feishu" disabled>⏹ 停止</button>
+      </div>
       <div class="help">飞书开放平台 → 自建应用;需开通机器人能力并订阅 im.message.receive_v1</div>
     </div>
   </div>
@@ -103,15 +126,32 @@ function toast(msg, ms) {
   clearTimeout(t._t); t._t = setTimeout(function(){ t.classList.remove('show'); }, ms || 2600);
 }
 
-function setBadge(name, status) {
+function setBadge(name, info) {
+  var status = (info && typeof info === 'object') ? (info.status || 'disabled') : (info || 'disabled');
   var el = document.getElementById('badge-' + name);
   var card = document.getElementById('card-' + name);
   var text = '-', cls = '';
   if (status === 'connected') { text = '🟢 已连接'; cls = 'conn'; card.classList.add('connected'); }
-  else if (status === 'disconnected') { text = '⚪ 未连接'; cls = 'dis'; card.classList.remove('connected'); }
-  else if (status === 'disabled') { text = '⚪ 未启用'; cls = ''; card.classList.remove('connected'); }
-  else if (status === 'skipped') { text = '⚪ 未配置'; cls = ''; card.classList.remove('connected'); }
+  else if (status === 'disconnected') { text = '🟡 已断开'; cls = 'dis'; card.classList.remove('connected'); }
+  else if (status === 'stopped') { text = '⚪ 已停止'; cls = ''; card.classList.remove('connected'); }
+  else { text = '⚪ 未配置'; cls = ''; card.classList.remove('connected'); }
   el.textContent = text; el.className = 'badge ' + cls;
+  updateChannelButtons(name, status);
+}
+
+function updateChannelButtons(name, status) {
+  var start = document.getElementById('btnStart-' + name);
+  var stop = document.getElementById('btnStop-' + name);
+  if (!start) return;
+  start.disabled = (status === 'connected' || status === 'disabled');
+  stop.disabled = (status !== 'connected');
+}
+
+function channelAction(name, action) {
+  fetch('/api/channels/' + name + '/' + action, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+    .then(function(r){ return r.json(); })
+    .then(function(d){ toast(d.ok ? (d.note || '操作成功') : ('操作失败: ' + (d.error || ''))); setTimeout(loadStatus, 1200); })
+    .catch(function(){ toast('操作失败: 网络错误'); });
 }
 
 function loadStatus() {
@@ -123,18 +163,7 @@ function loadStatus() {
     document.getElementById('uptime').textContent = d.uptimeSec + 's';
     document.getElementById('model').textContent = d.model || '-';
     document.getElementById('queue').textContent = (d.running || 0) + '/' + (d.queueDepth || 0);
-    CH.forEach(function(c) {
-      setBadge(c, d.channels[c] || 'disabled');
-    });
-    // 跳过未配置通道,但保留状态展示
-    if (LAST_CONFIG) {
-      CH.forEach(function(c) {
-        var el = document.getElementById('badge-' + c);
-        if (el.textContent === '未连接' && LAST_CONFIG.channels && !hasCreds(LAST_CONFIG.channels[c])) {
-          el.textContent = '⚪ 未配置'; el.className = 'badge';
-        }
-      });
-    }
+    CH.forEach(function(c) { setBadge(c, d.channels[c]); });
   }).catch(function(){});
 }
 
@@ -166,9 +195,63 @@ function loadWechatAccounts() {
   fetch('/api/wechat/accounts').then(function(r){ return r.json(); }).then(function(d) {
     var el = document.getElementById('wechat-accounts');
     var body = '账号目录: <code>' + d.accountsDir + '</code><br>';
-    body += d.accounts.length ? ('账号: <code>' + d.accounts.join(', ') + '</code>') : '暂无账号(放入账号文件后 10s 自动拉起)';
+    body += d.accounts.length ? ('账号: <code>' + d.accounts.join(', ') + '</code>') : '暂无账号(扫码登录或放入账号文件后 10s 自动拉起)';
     el.innerHTML = body;
   }).catch(function(){});
+}
+
+// ── 微信扫码登录(iLink)──
+var WECHAT_LOGIN_TIMER = null;
+function startWechatLogin() {
+  var btn = document.getElementById('wechatLoginBtn');
+  var cancel = document.getElementById('wechatCancelBtn');
+  btn.disabled = true; btn.textContent = '获取二维码...';
+  fetch('/api/wechat/login', { method: 'POST' }).then(function(r){ return r.json(); }).then(function(d) {
+    if (!d.ok || !d.qrcodeUrl) {
+      toast('获取二维码失败: ' + (d.error || '')); btn.disabled = false; btn.textContent = '📱 扫码登录'; return;
+    }
+    document.getElementById('wechatQrImg').src = d.qrcodeUrl;
+    document.getElementById('wechatQrArea').style.display = 'block';
+    document.getElementById('wechatQrStatus').textContent = '请使用微信扫码登录(5 分钟内有效)';
+    btn.textContent = '扫码中...';
+    cancel.style.display = 'inline-block';
+    pollWechatLogin(d.sessionKey);
+  }).catch(function(){ toast('获取二维码失败'); btn.disabled = false; btn.textContent = '📱 扫码登录'; });
+}
+function cancelWechatLogin() {
+  if (WECHAT_LOGIN_TIMER) { clearTimeout(WECHAT_LOGIN_TIMER); WECHAT_LOGIN_TIMER = null; }
+  document.getElementById('wechatQrArea').style.display = 'none';
+  document.getElementById('wechatCancelBtn').style.display = 'none';
+  var btn = document.getElementById('wechatLoginBtn');
+  btn.disabled = false; btn.textContent = '📱 扫码登录';
+}
+function pollWechatLogin(sk) {
+  if (WECHAT_LOGIN_TIMER) clearTimeout(WECHAT_LOGIN_TIMER);
+  // 用 setTimeout 递归:等上一次响应后再隔 2s 发起,避免慢响应时请求堆叠
+  (function tick() {
+    fetch('/api/wechat/login-status?session=' + encodeURIComponent(sk)).then(function(r){ return r.json(); }).then(function(d) {
+      var st = document.getElementById('wechatQrStatus');
+      if (d.status === 'confirmed') {
+        WECHAT_LOGIN_TIMER = null;
+        document.getElementById('wechatQrArea').style.display = 'none';
+        document.getElementById('wechatCancelBtn').style.display = 'none';
+        var btn = document.getElementById('wechatLoginBtn');
+        btn.disabled = false; btn.textContent = '📱 扫码登录';
+        toast('✅ 登录成功,账号 ' + d.accountId + ' 已保存');
+        loadWechatAccounts();
+        return;
+      }
+      if (d.status === 'scanned') st.textContent = '已扫码,请在手机上确认';
+      else if (d.status === 'expired' || d.status === 'qr_code_expired' || d.status === 'cancelled') {
+        WECHAT_LOGIN_TIMER = null;
+        st.textContent = '二维码已过期/取消,请重新生成';
+        var btn = document.getElementById('wechatLoginBtn');
+        btn.disabled = false; btn.textContent = '📱 扫码登录';
+        return;
+      }
+      WECHAT_LOGIN_TIMER = setTimeout(tick, 2000);
+    }).catch(function(){ WECHAT_LOGIN_TIMER = setTimeout(tick, 2000); });
+  })();
 }
 
 function saveConfig() {

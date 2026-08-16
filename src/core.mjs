@@ -19,7 +19,8 @@ import { askClaude, cleanAiResponse, truncateUtf8 } from './claude.mjs';
 
 const PENDING_FILE_TTL_MS = 30000;
 
-export function createCore({ cfg, anthropicEnv, model, inboxDir }) {
+export function createCore({ cfg: initialCfg, anthropicEnv, model, inboxDir, channelFactories = {}, reloadConfig }) {
+  let cfg = initialCfg; // 可运行时重载(维护页保存配置后)
   const pendingFiles = new Map(); // key = channel:senderId
   const activeAborts = new Set();
   const channels = new Map();
@@ -61,8 +62,9 @@ export function createCore({ cfg, anthropicEnv, model, inboxDir }) {
 
   function isAllowed(channelName, senderId, chatId) {
     const al = effectiveAllowlist(channelName);
-    if (!al.length) return false;
-    if (!al.includes(senderId)) return false;
+    const openDefault = cfg.channels[channelName]?.open === true; // 如微信个人号默认开放
+    if (!al.length && !openDefault) return false; // 无白名单且非默认开放 → fail-closed
+    if (al.length && !al.includes(senderId)) return false; // 有白名单则严格限制
     const cl = cfg.channels[channelName]?.allowChatIds || [];
     if (cl.length && chatId && !cl.includes(chatId)) return false;
     return true;
@@ -169,8 +171,56 @@ export function createCore({ cfg, anthropicEnv, model, inboxDir }) {
 
   function status() {
     const per = {};
-    for (const ch of channels.values()) per[ch.name] = ch.status ? ch.status() : 'unknown';
+    for (const name of Object.keys(channelFactories)) {
+      const ch = channels.get(name);
+      const configured = isChannelConfigured(name);
+      if (ch) {
+        const st = ch.status ? ch.status() : 'unknown';
+        per[name] = { status: st, enabled: true, running: st === 'connected' };
+      } else {
+        per[name] = { status: configured ? 'stopped' : 'disabled', enabled: configured, running: false };
+      }
+    }
     return per;
+  }
+
+  // 通道是否已配置凭据(用于未注册通道的「未配置/可启动」判断)
+  function isChannelConfigured(name) {
+    const c = cfg.channels[name];
+    if (!c) return false;
+    switch (name) {
+      case 'wecom': return !!(c.botId && c.secret);
+      case 'dingtalk': return !!(c.clientId && c.clientSecret);
+      case 'wechat': return true; // 账号文件驱动,无需 bot 凭据
+      case 'feishu': return !!(c.appId && c.appSecret);
+      default: return false;
+    }
+  }
+
+  function setConfig(newCfg) { cfg = newCfg; }
+  function reload() { if (reloadConfig) cfg = reloadConfig(); return cfg; }
+
+  // 运行时启动通道:已注册则重连;未注册则按当前配置重新创建(维护页保存配置后可动态启用)
+  async function startChannel(name) {
+    const existing = channels.get(name);
+    if (existing) {
+      try { await existing.start(); return { ok: true, note: '已重新启动' }; }
+      catch (e) { return { ok: false, error: e.message }; }
+    }
+    const factory = channelFactories[name];
+    if (!factory) return { ok: false, error: '未知通道 ' + name };
+    const ch = factory({ cfg, core });
+    if (!ch.enabled) return { ok: false, error: '未配置完整凭据,请先在维护页填写并保存' };
+    register(ch);
+    try { await ch.start(); return { ok: true, note: '已启动' }; }
+    catch (e) { return { ok: false, error: e.message }; }
+  }
+
+  function stopChannel(name) {
+    const ch = channels.get(name);
+    if (!ch) return { ok: false, error: '通道未运行' };
+    try { ch.stop(); return { ok: true, note: '已停止' }; }
+    catch (e) { return { ok: false, error: e.message }; }
   }
 
   return {
@@ -184,6 +234,12 @@ export function createCore({ cfg, anthropicEnv, model, inboxDir }) {
     start,
     stop,
     status,
+    setConfig,
+    reload,
+    startChannel,
+    stopChannel,
+    isChannelConfigured,
+    channelFactories,
     channels,
     queue,
     activeAborts,

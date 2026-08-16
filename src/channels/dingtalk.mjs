@@ -54,7 +54,6 @@ export function createChannel({ cfg, core }) {
   const enabled = !!(c.clientId && c.clientSecret);
 
   let client = null;
-  let isConnected = false;
 
   function log(msg) { console.log('[' + name + '] ' + msg); }
 
@@ -139,10 +138,9 @@ export function createChannel({ cfg, core }) {
     client.registerCallbackListener(TOPIC_ROBOT, handleRobot);
     // 必须注册全局事件监听,否则 SDK 可能断开
     client.registerAllEventListener(() => ({ status: 0 }));
-    client.on('connect', () => { isConnected = true; log('已连接到钉钉'); });
-    client.on('disconnect', () => { isConnected = false; log('与钉钉断开'); });
     client.on('error', (err) => log('错误: ' + err.message));
     client.connect();
+    // 注:该 SDK 不 emit 'connect' 事件,连接状态用 client.connected 判断
     log('已启动');
   }
 
@@ -151,7 +149,7 @@ export function createChannel({ cfg, core }) {
   }
 
   function status() {
-    return isConnected ? 'connected' : 'disconnected';
+    return (client && client.connected) ? 'connected' : 'disconnected';
   }
 
   return { name, enabled, start, stop, status };

@@ -13,8 +13,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import http from 'node:http';
+import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import QRCode from 'qrcode';
 
 const PROJECT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PUBLIC_DIR = path.join(PROJECT_DIR, 'public');
@@ -116,8 +118,12 @@ function restartBridge() {
   setTimeout(() => process.exit(0), 150); // 先回响应,再退出;新实例随即接管端口
 }
 
+function wechatAccountsDir() {
+  return readDotEnv().WECHAT_ACCOUNTS_DIR || path.join(PROJECT_DIR, 'wechat-accounts');
+}
+
 function wechatAccounts() {
-  const dir = cfg.channels.wechat.accountsDir || path.join(PROJECT_DIR, 'wechat-accounts');
+  const dir = wechatAccountsDir();
   let accounts = [];
   try {
     accounts = fs.readdirSync(dir)
@@ -125,6 +131,48 @@ function wechatAccounts() {
       .map((f) => f.replace('.json', ''));
   } catch {}
   return { accountsDir: dir, accounts };
+}
+
+// ── 微信 iLink 扫码登录(与 datai-u config-server 同流程)──
+const WECHAT_ILINK_BASE = 'https://ilinkai.weixin.qq.com';
+const ILINK_BOT_TYPE = '3';
+const LOGIN_TTL_MS = 5 * 60 * 1000;
+const activeLogins = new Map(); // sessionKey -> { q, t }
+
+async function wechatLoginStart() {
+  const resp = await fetch(WECHAT_ILINK_BASE + '/ilink/bot/get_bot_qrcode?bot_type=' + ILINK_BOT_TYPE, {
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!resp.ok) throw new Error('获取二维码失败: HTTP ' + resp.status);
+  const r = await resp.json();
+  const sessionKey = crypto.randomUUID();
+  activeLogins.set(sessionKey, { q: r.qrcode, t: Date.now() });
+  const qrcodeUrl = await QRCode.toDataURL(r.qrcode_img_content || r.qrcode, { width: 240, margin: 2 });
+  return { sessionKey, qrcodeUrl };
+}
+
+async function wechatLoginStatus(sessionKey) {
+  const l = activeLogins.get(sessionKey);
+  if (!l || Date.now() - l.t > LOGIN_TTL_MS) return { status: 'expired' };
+  // get_qrcode_status 是长轮询:持有连接 ~30s 等状态变化才返回,
+  // 客户端超时必须 > 长轮询窗口(用 60s 覆盖),扫码时会立即带 confirmed 返回。
+  const resp = await fetch(
+    WECHAT_ILINK_BASE + '/ilink/bot/get_qrcode_status?qrcode=' + encodeURIComponent(l.q),
+    { headers: { 'iLink-App-ClientVersion': '1' }, signal: AbortSignal.timeout(60000) }
+  );
+  if (!resp.ok) throw new Error('查询状态失败: HTTP ' + resp.status);
+  const r = await resp.json();
+  if (r.status === 'confirmed' && r.ilink_bot_id && r.bot_token) {
+    const id = r.ilink_bot_id.toLowerCase().replace(/[^a-z0-9._-]/g, '-');
+    fs.mkdirSync(wechatAccountsDir(), { recursive: true });
+    fs.writeFileSync(
+      path.join(wechatAccountsDir(), id + '.json'),
+      JSON.stringify({ token: r.bot_token, baseUrl: WECHAT_ILINK_BASE, savedAt: new Date().toISOString() }, null, 2)
+    );
+    activeLogins.delete(sessionKey);
+    return { status: 'confirmed', accountId: id };
+  }
+  return { status: r.status };
 }
 
 let cfg = null;
@@ -174,6 +222,7 @@ export function startAdminServer({ cfg: _cfg, core, model, agentLabel, port }) {
       if (req.method === 'POST' && p === '/api/config') {
         const body = JSON.parse(await readBody(req));
         const applied = applyConfig(body);
+        core.reload(); // 重读 .env,后续 startChannel 用新配置
         sendJson({ ok: true, applied });
         return;
       }
@@ -184,6 +233,24 @@ export function startAdminServer({ cfg: _cfg, core, model, agentLabel, port }) {
       }
       if (req.method === 'GET' && p === '/api/wechat/accounts') {
         sendJson(wechatAccounts());
+        return;
+      }
+      if (req.method === 'POST' && p === '/api/wechat/login') {
+        sendJson({ ok: true, ...(await wechatLoginStart()) });
+        return;
+      }
+      if (req.method === 'GET' && p === '/api/wechat/login-status') {
+        const sk = url.searchParams.get('session') || '';
+        if (!sk) { sendJson({ ok: false, error: 'session required' }, 400); return; }
+        sendJson({ ok: true, ...(await wechatLoginStatus(sk)) });
+        return;
+      }
+      // 通道运行时启停
+      const mCh = p.match(/^\/api\/channels\/([a-z]+)\/(start|stop)$/);
+      if (mCh && req.method === 'POST') {
+        const [, chName, chAction] = mCh;
+        if (chAction === 'start') sendJson({ ok: true, ...(await core.startChannel(chName)) });
+        else sendJson({ ok: true, ...(core.stopChannel(chName)) });
         return;
       }
       sendJson({ ok: false, error: 'not found' }, 404);

@@ -14,10 +14,22 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { CFG, anthropicEnv, model } from './src/config.mjs';
+import { CFG, anthropicEnv, model, reloadConfig } from './src/config.mjs';
 import { createCore } from './src/core.mjs';
 import { startAdminServer } from './src/admin.mjs';
 import { ensureGlobalAutoStart } from './src/autoregister.mjs';
+import { createChannel as createWecomChannel } from './src/channels/wecom.mjs';
+import { createChannel as createDingtalkChannel } from './src/channels/dingtalk.mjs';
+import { createChannel as createWechatChannel } from './src/channels/wechat.mjs';
+import { createChannel as createFeishuChannel } from './src/channels/feishu.mjs';
+
+// 全部通道工厂(供启动时启用 + 维护页运行时动态启停)
+const channelFactories = {
+  wecom: createWecomChannel,
+  dingtalk: createDingtalkChannel,
+  wechat: createWechatChannel,
+  feishu: createFeishuChannel,
+};
 
 const BRIDGE_DIR = path.dirname(fileURLToPath(import.meta.url));
 const INBOX_DIR = path.join(BRIDGE_DIR, 'inbox');
@@ -44,27 +56,25 @@ if (!anthropicEnv.ANTHROPIC_BASE_URL || !anthropicEnv.ANTHROPIC_AUTH_TOKEN) {
 }
 
 // ── 核心编排 ──
-const core = createCore({ cfg: CFG, anthropicEnv, model, inboxDir: INBOX_DIR });
+const core = createCore({ cfg: CFG, anthropicEnv, model, inboxDir: INBOX_DIR, channelFactories, reloadConfig });
 
-// ── 按 ENABLED_CHANNELS 动态加载通道(每个通道模块统一导出 createChannel)──
+// ── 按 ENABLED_CHANNELS 加载通道 ──
 let enabledCount = 0;
 for (const name of CFG.enabledChannels) {
-  try {
-    const mod = await import('./src/channels/' + name + '.mjs');
-    const channel = mod.createChannel({ cfg: CFG, core });
-    if (!channel.enabled) {
-      console.warn('[bridge] 通道 ' + name + ' 未配置完整凭据,已跳过');
-      continue;
-    }
-    const al = (CFG.channels[name]?.allowlist || []).concat(CFG.globalAllowlist).filter(Boolean);
-    if (!al.length) {
-      console.warn('[bridge] 通道 ' + name + ' 无白名单 → fail-closed,将忽略所有消息');
-    }
-    core.register(channel);
-    enabledCount++;
-  } catch (e) {
-    console.warn('[bridge] 加载通道 ' + name + ' 失败: ' + e.message + ' (已忽略)');
+  const factory = channelFactories[name];
+  if (!factory) { console.warn('[bridge] 未知通道 ' + name + ',已忽略'); continue; }
+  const channel = factory({ cfg: CFG, core });
+  if (!channel.enabled) {
+    console.warn('[bridge] 通道 ' + name + ' 未配置完整凭据,已跳过');
+    continue;
   }
+  const al = (CFG.channels[name]?.allowlist || []).concat(CFG.globalAllowlist).filter(Boolean);
+  const openDefault = CFG.channels[name]?.open === true;
+  if (!al.length && !openDefault) {
+    console.warn('[bridge] 通道 ' + name + ' 无白名单 → fail-closed,将忽略所有消息');
+  }
+  core.register(channel);
+  enabledCount++;
 }
 if (enabledCount === 0) {
   console.error('[bridge] 没有任何已启用且已配置的通道 (ENABLED_CHANNELS=' + CFG.enabledChannels.join(',') + ')');
