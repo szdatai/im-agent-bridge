@@ -69,6 +69,31 @@ Then send a message to the bot from the connected IM and you'll get a reply from
 
 > Tip: send one message to the bot — the bridge logs the `senderId` of the sender. Put that value into the channel's `X_ALLOWLIST`.
 
+## Quick Command Templates
+
+Send these as-is — the agent works in `WORK_DIR` (default: your project) autonomously: reads files, edits code, runs commands, then replies to the same IM in one message.
+
+| Scenario | Send this |
+|---|---|
+| Project structure | List the top-level directories of <project> and what each is for |
+| Recent commits | Show the last 10 git commits and summarize each |
+| Working tree | Run git status and summarize uncommitted changes |
+| Run tests | Find and run the core module tests, report the results |
+| Syntax check | Run a syntax/static check on <file> |
+| Add a field | Add field <field> to <DocType>, create the migration and register it |
+| Change logic | Modify <logic> in <file>, explain your changes |
+| Check errors | Look at recent log errors and analyze the cause |
+| Fix a bug | <describe the symptom>, find the root cause, fix it, and run related tests to confirm |
+| Code review | Review the changes on <branch/commit> and list issues |
+| Run a command | Run <command> and explain the output |
+| Explain code | Explain what <file> does and its key logic |
+
+**Tips**:
+- Be specific (file/path/acceptance criteria) for more accurate results;
+- After editing code, append "run the related tests to confirm";
+- Send an image/file, then add an instruction within 30s for the agent to read it;
+- Use absolute paths in the instruction to work outside the working directory.
+
 ## Channel Maintenance Page
 
 The bridge ships a local admin page (bound to `127.0.0.1` only):
@@ -96,7 +121,7 @@ See [`.env.example`](./.env.example). Highlights:
 | `ALLOWLIST` | Global whitelist fallback; used when a channel has no `X_ALLOWLIST`, otherwise fail-closed |
 | `WECOM_*` | WeCom credentials + `WECOM_ALLOWLIST` |
 | `DINGTALK_*` | DingTalk credentials + `DINGTALK_ALLOWLIST` |
-| `WECHAT_*` | WeChat iLink base URL + accounts dir + whitelist |
+| `WECHAT_*` | WeChat iLink base URL + accounts dir + whitelist (`WECHAT_OPEN=1` open by default, `0` = require whitelist) |
 | `FEISHU_*` | Feishu App ID/Secret + `FEISHU_ALLOWLIST` |
 | `WORK_DIR` | Agent working directory; defaults to the parent of this project |
 | `PERMISSION_MODE` | `acceptEdits` by default; `default` for stricter checking |
