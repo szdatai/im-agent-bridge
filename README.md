@@ -219,6 +219,11 @@ node --input-type=module -e "import('./src/autoregister.mjs').then(m=>m.ensureGl
 | `PUSH_TO` | 推送目标微信 wxid(必填) |
 | `PUSH_PROGRESS` | 进度推送开关:`1`=开(维护页可切换) |
 
+### 两种补充推送
+
+- **IM 任务完成自动推送(方案1)**:通过微信/企微/钉钉/飞书发给 agent 的任务,完成后自动把结果摘要(带来源,如 `[wechat 任务完成]`)推到 `PUSH_TO` 微信;
+- **CLI 手动推送(方案2)**:会话中让 agent 执行 `node D:/AI/im-agent-bridge/scripts/push.mjs "内容"`(或直接说「把结果推送到微信」),即可手动推一条到微信。
+
 ### 说明与边界
 
 - 进度/决策推送带冷却(10s / 5s),避免刷屏;

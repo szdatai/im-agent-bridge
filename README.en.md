@@ -207,6 +207,11 @@ Start a Claude Code task in the terminal, leave your desk — stay on top of pro
 | `PUSH_TO` | Target WeChat wxid for pushes (required) |
 | `PUSH_PROGRESS` | Progress push switch: `1` = on (toggled from the admin page) |
 
+### Two additional pushes
+
+- **IM task-completion auto-push (option 1)**: tasks sent to the agent via WeChat/WeCom/DingTalk/Feishu push a result summary (with source, e.g. `[wechat 任务完成]`) to `PUSH_TO` on completion;
+- **Manual CLI push (option 2)**: in a session, have the agent run `node D:/AI/im-agent-bridge/scripts/push.mjs "text"` (or just say "push the result to WeChat") to push a message manually.
+
 ### Notes & limits
 
 - Progress/decision pushes have a cooldown (10s / 5s) to avoid spam;

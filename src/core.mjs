@@ -113,6 +113,14 @@ export function createCore({ cfg: initialCfg, anthropicEnv, model, inboxDir, cha
       const reply = truncateUtf8(cleanAiResponse(raw), cfg.maxReplyBytes);
       (msg.log || console.log)('[' + msg.channel + '] 回复: ' + reply.slice(0, 60) + '...');
       await msg.reply(reply);
+      // 方案1:IM 任务完成 → 自动推送到 PUSH_TO(微信),带来源;fire-and-forget
+      if (cfg.pushTo) {
+        const wc = channels.get('wechat');
+        if (wc && typeof wc.send === 'function') {
+          const summary = reply.replace(/\s+/g, ' ').trim().slice(0, 200);
+          wc.send(cfg.pushTo, '[' + msg.channel + ' 任务完成]\n' + summary).catch(() => {});
+        }
+      }
       if (msg.ack) {
         try { await msg.ack(); } catch (e) { console.error('[' + msg.channel + '] ack 失败: ' + e.message); }
       }
