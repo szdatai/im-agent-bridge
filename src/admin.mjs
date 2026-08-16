@@ -250,7 +250,10 @@ export function startAdminServer({ cfg: _cfg, core, model, agentLabel, port }) {
       // CLI 结果推送:发送文本到指定 wxid(经微信通道)
       if (req.method === 'POST' && p === '/api/push') {
         const body = JSON.parse(await readBody(req));
-        const text = String(body.text || '').trim();
+        // 统一加时间戳(所有推送自动带上 [HH:MM])
+        const ts = new Date();
+        const hhmm = String(ts.getHours()).padStart(2, '0') + ':' + String(ts.getMinutes()).padStart(2, '0');
+        const text = '[' + hhmm + '] ' + String(body.text || '').trim();
         const to = String(body.to || '').trim() || readDotEnv().PUSH_TO || '';
         const kind = body.kind === 'progress' ? 'progress' : 'result';
         if (!text) { sendJson({ ok: false, error: 'text required' }, 400); return; }
