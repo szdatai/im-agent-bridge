@@ -136,6 +136,7 @@ export function createChannel({ cfg, core }) {
           this.status = 'error';
           accLog(this.acc.id, 'Token 无效,清理...');
           clearAccountFiles(this.acc.id);
+          core.notifyWechatSessionExpired(this.acc.id);
           return false;
         }
         accLog(this.acc.id, 'notifyStart ' + (resp.ok ? '成功' : 'HTTP ' + resp.status));
@@ -163,6 +164,7 @@ export function createChannel({ cfg, core }) {
           this.status = 'error';
           accLog(this.acc.id, 'Token 已失效,清理残存文件...');
           clearAccountFiles(this.acc.id);
+          core.notifyWechatSessionExpired(this.acc.id);
           return;
         }
         if (!resp.ok) throw new Error('HTTP ' + resp.status);
@@ -174,6 +176,7 @@ export function createChannel({ cfg, core }) {
             this.status = 'error';
             accLog(this.acc.id, '会话失效,清理残存账号...');
             clearAccountFiles(this.acc.id);
+            core.notifyWechatSessionExpired(this.acc.id);
             return;
           }
         } else {

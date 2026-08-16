@@ -234,6 +234,28 @@ export function createCore({ cfg: initialCfg, anthropicEnv, model, inboxDir, cha
     catch (e) { return { ok: false, error: e.message }; }
   }
 
+  // 微信 iLink 会话过期(账号被清理)时,经其他已配置通道提醒用户重新扫码(1 小时冷却)
+  let lastWechatExpiryNotify = 0;
+  function notifyWechatSessionExpired(accId) {
+    const now = Date.now();
+    if (now - lastWechatExpiryNotify < 3600000) return;
+    lastWechatExpiryNotify = now;
+    const short = String(accId || 'unknown').slice(0, 8);
+    const text = '[微信] ⚠️ iLink 会话已过期(' + short + '),请到维护页重新扫码登录';
+    const targets = [
+      { name: 'wecom', to: cfg.pushWecomTo, extra: undefined },
+      { name: 'dingtalk', to: cfg.pushDingtalkConvId, extra: cfg.pushDingtalkRobotCode },
+      { name: 'feishu', to: cfg.pushFeishuTo, extra: undefined },
+    ];
+    for (const t of targets) {
+      if (!t.to) continue;
+      const ch = channels.get(t.name);
+      if (ch && typeof ch.send === 'function') {
+        ch.send(t.to, text, t.extra).catch(() => {});
+      }
+    }
+  }
+
   return {
     cfg,
     saveToInbox,
@@ -250,6 +272,7 @@ export function createCore({ cfg: initialCfg, anthropicEnv, model, inboxDir, cha
     startChannel,
     stopChannel,
     isChannelConfigured,
+    notifyWechatSessionExpired,
     channelFactories,
     channels,
     queue,
