@@ -44,12 +44,10 @@ if (tp && fs.existsSync(tp)) {
 
 const isFail = hook.hook_event_name === 'StopFailure';
 const tag = '【Claude Code ' + (isFail ? '失败' : '完成') + '】\n' + result.slice(0, 1500);
-const ts = new Date();
-const hhmm = String(ts.getHours()).padStart(2, '0') + ':' + String(ts.getMinutes()).padStart(2, '0');
 const logDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../logs');
 
-// 微信/钉钉/飞书 → bridge(bridge 统一加 [HH:MM],按配置决定发不发)
-for (const channel of ['wechat', 'dingtalk', 'feishu']) {
+// 微信/企微/钉钉/飞书 → bridge(bridge 统一加 [HH:MM],按各自 PUSH_* 开关/目标决定发不发)
+for (const channel of ['wechat', 'wecom', 'dingtalk', 'feishu']) {
   fetch('http://127.0.0.1:18794/api/push', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -57,13 +55,4 @@ for (const channel of ['wechat', 'dingtalk', 'feishu']) {
   })
     .then((r) => { if (!r.ok) fs.appendFileSync(path.join(logDir, 'hook-push.log'), '[' + new Date().toISOString() + '] ' + channel + ' HTTP ' + r.status + '\n'); })
     .catch(() => {});
-}
-
-// 企微群 webhook(脚本自带时间戳)
-if (process.env.WECOM_WEBHOOK_URL) {
-  fetch(process.env.WECOM_WEBHOOK_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ msgtype: 'text', text: { content: '[' + hhmm + '] ' + tag } }),
-  }).catch(() => {});
 }

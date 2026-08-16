@@ -208,11 +208,12 @@ Start a Claude Code task in the terminal, leave your desk — stay on top of pro
 | `PUSH_DINGTALK_CONV_ID` | Result push target DingTalk openConversationId |
 | `PUSH_DINGTALK_ROBOT_CODE` | DingTalk robot code (required to send) |
 | `PUSH_FEISHU_TO` | Result push target Feishu receive_id (chat_id / open_id) |
-| `WECOM_WEBHOOK_URL` | WeCom group robot webhook (in settings.json env) |
+| `PUSH_WECOM_TO` | WeCom push target user userid (bot pushes proactively to the single chat, **bidirectional**) |
 | `PUSH_PROGRESS` | Progress push switch: `1` = on (toggled from the admin page) |
-| `PUSH_WECHAT` / `PUSH_DINGTALK` / `PUSH_FEISHU` | Per-channel result push switch: `1` = on (toggled from the admin page) |
+| `PUSH_WECHAT` / `PUSH_DINGTALK` / `PUSH_FEISHU` / `PUSH_WECOM` | Per-channel result push switch: `1` = on (toggled from the admin page) |
 
-Channels without a configured target are skipped; every push carries a `[HH:MM]` timestamp. The WeChat/DingTalk/Feishu/Progress toggles live in the admin page's "推送" group.
+Channels without a configured target are skipped; every push carries a `[HH:MM]` timestamp. The WeChat/WeCom/DingTalk/Feishu/Progress toggles live in the admin page's "推送" group.
+> WeCom moved from a group webhook (one-way) to the **bot pushing proactively to your single chat (sendMessage)** — you can reply directly in that chat and the bot receives it, so WeCom is now bidirectional too.
 
 ### Two additional pushes
 

@@ -220,11 +220,12 @@ node --input-type=module -e "import('./src/autoregister.mjs').then(m=>m.ensureGl
 | `PUSH_DINGTALK_CONV_ID` | 结果推送目标钉钉 openConversationId |
 | `PUSH_DINGTALK_ROBOT_CODE` | 钉钉机器人编码(发送所需) |
 | `PUSH_FEISHU_TO` | 结果推送目标飞书 receive_id(chat_id / open_id) |
-| `WECOM_WEBHOOK_URL` | 企微群机器人 webhook(在 settings.json 环境) |
+| `PUSH_WECOM_TO` | 企微推送目标用户 userid(bot 主动发到单聊,**双向可回**) |
 | `PUSH_PROGRESS` | 进度推送开关:`1`=开(维护页可切换) |
-| `PUSH_WECHAT` / `PUSH_DINGTALK` / `PUSH_FEISHU` | 各通道结果推送开关:`1`=开(维护页可切换) |
+| `PUSH_WECHAT` / `PUSH_DINGTALK` / `PUSH_FEISHU` / `PUSH_WECOM` | 各通道结果推送开关:`1`=开(维护页可切换) |
 
-未填目标的通道自动跳过;所有推送统一带 `[HH:MM]` 时间戳;微信/钉钉/飞书/进度开关都在维护页「推送」组里切换。
+未填目标的通道自动跳过;所有推送统一带 `[HH:MM]` 时间戳;微信/企微/钉钉/飞书/进度开关都在维护页「推送」组里切换。
+> 企微已从群 webhook(单向)改为 **bot 主动发单聊(sendMessage)**,你在单聊里直接回复,机器人能收到 —— 企微也是双向通道。
 
 ### 两种补充推送
 

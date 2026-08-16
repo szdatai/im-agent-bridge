@@ -75,6 +75,7 @@ function buildConfigView() {
     pushWechat: env.PUSH_WECHAT !== '0' ? '1' : '0',
     pushDingtalk: env.PUSH_DINGTALK !== '0' ? '1' : '0',
     pushFeishu: env.PUSH_FEISHU !== '0' ? '1' : '0',
+    pushWecom: env.PUSH_WECOM !== '0' ? '1' : '0',
     channels: {},
   };
   for (const [name, fieldMap] of Object.entries(ENV_MAP)) {
@@ -100,6 +101,7 @@ function applyConfig(body) {
   if (body.pushWechat !== undefined) updates.PUSH_WECHAT = bool(body.pushWechat) ? '1' : '0';
   if (body.pushDingtalk !== undefined) updates.PUSH_DINGTALK = bool(body.pushDingtalk) ? '1' : '0';
   if (body.pushFeishu !== undefined) updates.PUSH_FEISHU = bool(body.pushFeishu) ? '1' : '0';
+  if (body.pushWecom !== undefined) updates.PUSH_WECOM = bool(body.pushWecom) ? '1' : '0';
   for (const [name, fieldMap] of Object.entries(ENV_MAP)) {
     if (!fieldMap || typeof fieldMap === 'string') continue;
     const ch = body.channels?.[name];
@@ -262,10 +264,11 @@ export function startAdminServer({ cfg: _cfg, core, model, agentLabel, port }) {
         const ts = new Date();
         const hhmm = String(ts.getHours()).padStart(2, '0') + ':' + String(ts.getMinutes()).padStart(2, '0');
         const text = '[' + hhmm + '] ' + String(body.text || '').trim();
-        const channelName = (body.channel === 'dingtalk' || body.channel === 'feishu') ? body.channel : 'wechat';
+        const channelName = ['dingtalk', 'feishu', 'wecom'].includes(body.channel) ? body.channel : 'wechat';
         const env = readDotEnv();
         const defaultTo = channelName === 'dingtalk' ? env.PUSH_DINGTALK_CONV_ID
           : channelName === 'feishu' ? env.PUSH_FEISHU_TO
+          : channelName === 'wecom' ? env.PUSH_WECOM_TO
           : env.PUSH_TO;
         const to = String(body.to || '').trim() || defaultTo || '';
         const kind = body.kind === 'progress' ? 'progress' : 'result';

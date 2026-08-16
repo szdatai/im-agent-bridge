@@ -57,6 +57,7 @@
       <label style="display:flex;align-items:center;gap:3px;"><input type="checkbox" id="push-wechat" onchange="saveConfig()">微信</label>
       <label style="display:flex;align-items:center;gap:3px;"><input type="checkbox" id="push-dingtalk" onchange="saveConfig()">钉钉</label>
       <label style="display:flex;align-items:center;gap:3px;"><input type="checkbox" id="push-feishu" onchange="saveConfig()">飞书</label>
+      <label style="display:flex;align-items:center;gap:3px;"><input type="checkbox" id="push-wecom" onchange="saveConfig()">企微</label>
       <label style="display:flex;align-items:center;gap:3px;"><input type="checkbox" id="push-progress" onchange="saveConfig()">进度</label>
     </div>
     <div style="margin-left:auto"><button class="btn" onclick="saveConfig()">💾 保存配置</button> <button class="btn danger" onclick="restart()">🔄 重启进程</button></div>
@@ -186,6 +187,7 @@ function loadConfig() {
     document.getElementById('push-wechat').checked = (d.pushWechat === '1');
     document.getElementById('push-dingtalk').checked = (d.pushDingtalk === '1');
     document.getElementById('push-feishu').checked = (d.pushFeishu === '1');
+    document.getElementById('push-wecom').checked = (d.pushWecom === '1');
     document.getElementById('wecom-botId').value = d.channels.wecom.botId || '';
     document.getElementById('wecom-secret').placeholder = d.channels.wecom.secretSet ? '已设置(留空不变)' : '未设置';
     document.getElementById('wecom-allowlist').value = d.channels.wecom.allowlist || '';
@@ -271,6 +273,7 @@ function saveConfig() {
     pushWechat: document.getElementById('push-wechat').checked ? '1' : '0',
     pushDingtalk: document.getElementById('push-dingtalk').checked ? '1' : '0',
     pushFeishu: document.getElementById('push-feishu').checked ? '1' : '0',
+    pushWecom: document.getElementById('push-wecom').checked ? '1' : '0',
     channels: {}
   };
   payload.channels.wecom = {

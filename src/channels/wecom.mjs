@@ -120,5 +120,17 @@ export function createChannel({ cfg, core }) {
     return isConnected ? 'connected' : 'disconnected';
   }
 
-  return { name, enabled, start, stop, status };
+  // 主动推送:向指定会话发消息(单聊填用户 userid,群聊填 chatid)
+  // 注:sendMessage 仅支持 markdown/template_card/媒体,不含 text,用 markdown 承载文本
+  async function send(to, text) {
+    if (!client) return { ok: false, error: '企微未连接' };
+    try {
+      await client.sendMessage(to, { msgtype: 'markdown', markdown: { content: text } });
+      return { ok: true, note: '已发送到 ' + to };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  }
+
+  return { name, enabled, start, stop, status, send };
 }
