@@ -235,9 +235,10 @@ im-agent-bridge/
 ├── bridge.mjs            # single entry: dynamically loads channels by ENABLED_CHANNELS
 ├── scripts/
 │   ├── autostart.mjs     # auto-start guard (port probe + detached launch)
-│   ├── push-claude-result.mjs   # CLI result push hook
+│   ├── push-claude-all.mjs      # CLI result push (WeChat/WeCom/DingTalk/Feishu)
 │   ├── push-claude-progress.mjs # CLI progress push hook
-│   └── push-claude-decision.mjs # CLI decision alert hook
+│   ├── push-claude-decision.mjs # CLI decision alert hook
+│   └── push.mjs          # manual push tool
 ├── public/
 │   └── index.html        # channel maintenance web UI
 ├── src/

@@ -80,7 +80,7 @@ curl http://127.0.0.1:18794/health
 
 ## 常用指令模板
 
-直接照发即可 —— agent 在 `WORK_DIR`(默认 datai-erp)自主读文件、改代码、跑命令,完成后一次性回复到原 IM。
+直接照发即可 —— agent 在 `WORK_DIR` 指向的项目(默认取桥接项目父目录)自主读文件、改代码、跑命令,完成后一次性回复到原 IM。
 
 | 场景 | 直接发送 |
 |---|---|
@@ -117,7 +117,8 @@ http://127.0.0.1:<BRIDGE_PORT>/
 - `🔄 重启进程` → 优雅重启 bridge(detached 拉起新实例后退出),让新配置生效;
 - 微信账号目录与账号列表(扫码登录生成的账号文件放入后 10s 自动拉起)。
 
-接口:`/api/status`、`/api/config`(GET 掩码 / POST 保存)、`/api/restart`、`/api/wechat/accounts`、`/health`。
+接口:`/api/status`、`/api/config`(GET 掩码 / POST 保存)、`/api/restart`、
+`/api/wechat/accounts`、`/api/wechat/login`(扫码登录)、`/api/channels/:name/start|stop`(启停)、`/api/push`(推送)、`/health`。
 
 ## 配置说明
 
@@ -230,7 +231,7 @@ node --input-type=module -e "import('./src/autoregister.mjs').then(m=>m.ensureGl
 ### 两种补充推送
 
 - **IM 任务完成自动推送(方案1)**:通过微信/企微/钉钉/飞书发给 agent 的任务,完成后自动把结果摘要(带来源,如 `[wechat 任务完成]`)推到 `PUSH_TO` 微信;
-- **CLI 手动推送(方案2)**:会话中让 agent 执行 `node D:/AI/im-agent-bridge/scripts/push.mjs "内容"`(或直接说「把结果推送到微信」),即可手动推一条到微信。
+- **CLI 手动推送(方案2)**:会话中让 agent 执行 `node <bridge路径>/scripts/push.mjs "内容"`(或直接说「把结果推送到微信」),即可手动推一条到微信。
 
 ### 说明与边界
 
@@ -247,9 +248,10 @@ im-agent-bridge/
 ├── bridge.mjs            # 唯一入口:按 ENABLED_CHANNELS 动态加载通道
 ├── scripts/
 │   ├── autostart.mjs     # 自动启动守卫(端口探测 + detached 拉起)
-│   ├── push-claude-result.mjs   # CLI 结果推送 hook
+│   ├── push-claude-all.mjs      # CLI 结果推送(微信/企微/钉钉/飞书)
 │   ├── push-claude-progress.mjs # CLI 进度推送 hook
-│   └── push-claude-decision.mjs # CLI 决策提醒 hook
+│   ├── push-claude-decision.mjs # CLI 决策提醒 hook
+│   └── push.mjs          # 手动推送工具
 ├── public/
 │   └── index.html        # 通道维护页(Web UI)
 ├── src/
