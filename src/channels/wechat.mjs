@@ -313,5 +313,16 @@ export function createChannel({ cfg, core }) {
     return online ? 'connected' : 'disconnected';
   }
 
-  return { name, enabled, start, stop, status };
+  // 主动推送:向指定 wxid 发消息(无需上下文 token)
+  async function send(toUser, text) {
+    for (const inst of instances.values()) {
+      if (inst.status === 'online') {
+        await inst.sendMsg(toUser, '', text);
+        return { ok: true, note: '已发送到 ' + toUser };
+      }
+    }
+    return { ok: false, error: '无在线微信账号' };
+  }
+
+  return { name, enabled, start, stop, status, send };
 }

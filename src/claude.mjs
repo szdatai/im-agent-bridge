@@ -93,7 +93,8 @@ export async function askClaude(prompt, {
         permissionMode,
         maxTurns,
         // options.env 会整体替换子进程环境,必须展开 ...process.env 保留 PATH(Windows)
-        env: { ...process.env, ...anthropicEnv, ANTHROPIC_MODEL: model },
+        // IM_AGENT_BRIDGE 标记:让 CLI 结果推送 hook 跳过 bridge 内部的 agent 会话(防回推/防刷屏)
+        env: { ...process.env, ...anthropicEnv, ANTHROPIC_MODEL: model, IM_AGENT_BRIDGE: '1' },
         additionalDirectories,
         systemPrompt,
         canUseTool: permissionGate,

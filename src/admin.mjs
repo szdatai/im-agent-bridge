@@ -245,6 +245,19 @@ export function startAdminServer({ cfg: _cfg, core, model, agentLabel, port }) {
         sendJson({ ok: true, ...(await wechatLoginStatus(sk)) });
         return;
       }
+      // CLI 结果推送:发送文本到指定 wxid(经微信通道)
+      if (req.method === 'POST' && p === '/api/push') {
+        const body = JSON.parse(await readBody(req));
+        const text = String(body.text || '').trim();
+        const to = String(body.to || '').trim() || readDotEnv().PUSH_TO || '';
+        if (!text) { sendJson({ ok: false, error: 'text required' }, 400); return; }
+        if (!to) { sendJson({ ok: false, error: '未配置 PUSH_TO,请设置推送目标 wxid' }); return; }
+        const wc = core.channels.get('wechat');
+        if (!wc || typeof wc.send !== 'function') { sendJson({ ok: false, error: '微信通道未启用' }); return; }
+        const r = await wc.send(to, text);
+        sendJson({ ok: true, ...r });
+        return;
+      }
       // 通道运行时启停
       const mCh = p.match(/^\/api\/channels\/([a-z]+)\/(start|stop)$/);
       if (mCh && req.method === 'POST') {

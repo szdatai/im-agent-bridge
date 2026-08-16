@@ -83,6 +83,7 @@ function buildConfig() {
   return {
     enabledChannels: splitList(pick('', 'ENABLED_CHANNELS') || 'wecom'),
     globalAllowlist: splitList(pick('', 'ALLOWLIST')),
+    pushTo: pick('', 'PUSH_TO'), // CLI 结果推送目标(微信 wxid)
 
     channels: {
       wechat: {
