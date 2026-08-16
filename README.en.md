@@ -188,6 +188,32 @@ node scripts/autostart.mjs   # launch the bridge
 node --input-type=module -e "import('./src/autoregister.mjs').then(m=>m.ensureGlobalAutoStart().then(r=>console.log(r.reason)))"
 ```
 
+## CLI ↔ WeChat Remote Control
+
+Start a Claude Code task in the terminal, leave your desk — stay on top of progress and results from WeChat (pushed via the bridge + WeChat channel).
+
+### Three kinds of push
+
+| Type | Trigger | Example | Toggle |
+|---|---|---|---|
+| Result push | Session ends (Stop / StopFailure hook) | `【Claude Code 完成 14:30】…final result summary…` | Always on |
+| Progress push | Key tool calls during a task (PostToolUse hook) | `【进行中】📝 src/foo.py`, `【进行中】⚙️ npm test` | Admin page "进度推送" switch (`PUSH_PROGRESS`) |
+| Decision alert | Claude asks / requests permission (AskUserQuestion / PermissionRequest hook) | `⚠️ Claude Code 需要你决策:continue modifying…? Options: continue / undo` | Always on |
+
+### Config
+
+| Variable | Description |
+|---|---|
+| `PUSH_TO` | Target WeChat wxid for pushes (required) |
+| `PUSH_PROGRESS` | Progress push switch: `1` = on (toggled from the admin page) |
+
+### Notes & limits
+
+- Progress/decision pushes have a cooldown (10s / 5s) to avoid spam;
+- The bridge's own agent sessions (`IM_AGENT_BRIDGE`) are skipped — no self-push loops;
+- Decision alerts only tell you to "return to the computer" — **you cannot answer decisions remotely from WeChat** (interactive sessions require terminal input);
+- Related hooks are registered automatically in `~/.claude/settings.json` (Stop / StopFailure / PostToolUse / AskUserQuestion / PermissionRequest).
+
 ## Project Structure
 
 ```
@@ -195,7 +221,10 @@ im-agent-bridge/
 ├── package.json          # type:module; start scripts
 ├── bridge.mjs            # single entry: dynamically loads channels by ENABLED_CHANNELS
 ├── scripts/
-│   └── autostart.mjs     # auto-start guard (port probe + detached launch)
+│   ├── autostart.mjs     # auto-start guard (port probe + detached launch)
+│   ├── push-claude-result.mjs   # CLI result push hook
+│   ├── push-claude-progress.mjs # CLI progress push hook
+│   └── push-claude-decision.mjs # CLI decision alert hook
 ├── public/
 │   └── index.html        # channel maintenance web UI
 ├── src/

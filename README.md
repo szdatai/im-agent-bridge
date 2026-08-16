@@ -200,6 +200,32 @@ node scripts/autostart.mjs   # 拉起 bridge
 node --input-type=module -e "import('./src/autoregister.mjs').then(m=>m.ensureGlobalAutoStart().then(r=>console.log(r.reason)))"
 ```
 
+## CLI ↔ 微信 远程掌控
+
+在终端启动 Claude Code 任务后离开电脑,微信实时掌控进度与结果(经 bridge + 微信通道推送)。
+
+### 三类推送
+
+| 类型 | 触发 | 内容示例 | 开关 |
+|---|---|---|---|
+| 结果推送 | 会话结束(Stop / StopFailure hook) | `【Claude Code 完成 14:30】…最终结果摘要…` | 常开 |
+| 进度推送 | 进行中关键工具调用(PostToolUse hook) | `【进行中】📝 src/foo.py`、`【进行中】⚙️ npm test` | 维护页「进度推送」开关(`PUSH_PROGRESS`) |
+| 决策提醒 | Claude 提问 / 请求授权(AskUserQuestion / PermissionRequest hook) | `⚠️ Claude Code 需要你决策:是否继续修改…? 选项:继续 / 撤销` | 常开 |
+
+### 配置
+
+| 变量 | 说明 |
+|---|---|
+| `PUSH_TO` | 推送目标微信 wxid(必填) |
+| `PUSH_PROGRESS` | 进度推送开关:`1`=开(维护页可切换) |
+
+### 说明与边界
+
+- 进度/决策推送带冷却(10s / 5s),避免刷屏;
+- bridge 内部 agent 会话(`IM_AGENT_BRIDGE`)自动跳过,不会回推自己;
+- 决策提醒只能通知「请回电脑处理」,**不能从微信远程回复决策**(交互会话需终端输入);
+- 相关 hook 自动注册在 `~/.claude/settings.json`(Stop / StopFailure / PostToolUse / AskUserQuestion / PermissionRequest)。
+
 ## 项目结构
 
 ```
@@ -207,7 +233,10 @@ im-agent-bridge/
 ├── package.json          # type:module;start 脚本
 ├── bridge.mjs            # 唯一入口:按 ENABLED_CHANNELS 动态加载通道
 ├── scripts/
-│   └── autostart.mjs     # 自动启动守卫(端口探测 + detached 拉起)
+│   ├── autostart.mjs     # 自动启动守卫(端口探测 + detached 拉起)
+│   ├── push-claude-result.mjs   # CLI 结果推送 hook
+│   ├── push-claude-progress.mjs # CLI 进度推送 hook
+│   └── push-claude-decision.mjs # CLI 决策提醒 hook
 ├── public/
 │   └── index.html        # 通道维护页(Web UI)
 ├── src/
