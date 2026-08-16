@@ -1,7 +1,7 @@
 {
-  "name": "wecom-claude-bridge",
+  "name": "datai-agent-bridge",
   "version": "1.0.0",
-  "description": "企业微信 ↔ Claude Code 双向通道桥接进程(WeCom bot ↔ Claude Code headless agent bridge)",
+  "description": "搭台智桥 (Datai-Agent-Bridge): 多通道 IM(微信/企微/钉钉/飞书)↔ Claude Code 双向桥接与远程掌控",
   "type": "module",
   "license": "MIT",
   "author": "Datai",

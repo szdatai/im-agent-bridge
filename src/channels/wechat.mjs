@@ -129,7 +129,7 @@ export function createChannel({ cfg, core }) {
         const resp = await fetch(this.base() + '/ilink/bot/msg/notifystart', {
           method: 'POST',
           headers: this.getHeaders(),
-          body: JSON.stringify({ base_info: { channel_version: CHANNEL_VERSION, bot_agent: 'im-agent-bridge' } }),
+          body: JSON.stringify({ base_info: { channel_version: CHANNEL_VERSION, bot_agent: 'datai-agent-bridge' } }),
           signal: AbortSignal.timeout(10000),
         });
         if (resp.status === 401) {
@@ -154,7 +154,7 @@ export function createChannel({ cfg, core }) {
           headers: this.getHeaders(),
           body: JSON.stringify({
             get_updates_buf: this.cursor,
-            base_info: { channel_version: CHANNEL_VERSION, bot_agent: 'im-agent-bridge' },
+            base_info: { channel_version: CHANNEL_VERSION, bot_agent: 'datai-agent-bridge' },
           }),
           signal: AbortSignal.timeout(35000),
         });
@@ -250,13 +250,13 @@ export function createChannel({ cfg, core }) {
             msg: {
               from_user_id: '',
               to_user_id: toUser,
-              client_id: 'im-agent-bridge-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6),
+              client_id: 'datai-agent-bridge-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6),
               message_type: 2,
               message_state: 2,
               item_list: [{ type: 1, text_item: { text } }],
               context_token: ctxToken || undefined,
             },
-            base_info: { channel_version: CHANNEL_VERSION, bot_agent: 'im-agent-bridge' },
+            base_info: { channel_version: CHANNEL_VERSION, bot_agent: 'datai-agent-bridge' },
           }),
         });
         if (!resp.ok) accLog(this.acc.id, 'sendMsg 失败: HTTP ' + resp.status);

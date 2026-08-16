@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 
 const BRIDGE_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DEFAULT_SETTINGS_PATH = path.join(os.homedir(), '.claude', 'settings.json');
-const AUTO_MARKER = 'wecom-claude-bridge/scripts/autostart.mjs';
+const AUTO_MARKER = 'im-agent-bridge/scripts/autostart.mjs';
 
 /**
  * 确保全局 settings.json 已注册本项目的自动启动 hook。

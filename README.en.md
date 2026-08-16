@@ -1,4 +1,4 @@
-# IM ↔ Claude Code Bridge
+# Datai-Agent-Bridge (搭台智桥)
 
 > **English** | [中文](README.md)
 
