@@ -54,6 +54,8 @@ export function createChannel({ cfg, core }) {
   const enabled = !!(c.clientId && c.clientSecret);
 
   let client = null;
+  let lastRobotCode = ''; // 从收到的消息里自动抓取机器人编码
+  let lastSessionWebhook = ''; // 会话 webhook(可复用来主动发消息)
 
   function log(msg) { console.log('[' + name + '] ' + msg); }
 
@@ -67,6 +69,11 @@ export function createChannel({ cfg, core }) {
       const sessionWebhook = data.sessionWebhook;
       const msgtype = data.msgtype || '';
       const chatType = data.conversationType === '2' ? 'group' : 'single';
+      if (data.robotCode) {
+        lastRobotCode = data.robotCode;
+        log('已记录机器人编码: ' + data.robotCode.slice(0, 8) + '...');
+      }
+      if (data.sessionWebhook) lastSessionWebhook = data.sessionWebhook; // 记住会话 webhook,供主动推送复用
 
       // 回复(一次性)+ 确认已处理(防钉钉重推)
       const reply = async (content) => {
@@ -152,24 +159,24 @@ export function createChannel({ cfg, core }) {
     return (client && client.connected) ? 'connected' : 'disconnected';
   }
 
-  // 主动推送:向指定 openConversationId 发消息(需 robotCode)
+  // 主动推送:复用最近一次收到的会话 webhook(与回复同一机制,稳定可靠)
   async function send(to, text, robotCode) {
     if (!client) return { ok: false, error: '钉钉未连接' };
+    if (!lastSessionWebhook) return { ok: false, error: '尚未捕获钉钉会话 webhook(请先给机器人发一条消息)' };
     try {
       const accessToken = await client.getAccessToken();
-      const resp = await fetch('https://api.dingtalk.com/v1.0/robot/robotMessages/robotMessagesSend', {
+      const resp = await fetch(lastSessionWebhook, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-acs-dingtalk-access-token': accessToken },
-        body: JSON.stringify({
-          msgParam: JSON.stringify({ content: text }),
-          msgKey: 'sampleText',
-          openConversationId: to,
-          robotCode: robotCode || '',
-        }),
+        body: JSON.stringify({ msgtype: 'text', text: { content: text } }),
         signal: AbortSignal.timeout(15000),
       });
-      if (!resp.ok) return { ok: false, error: '钉钉发送失败: HTTP ' + resp.status };
-      return { ok: true, note: '已发送到 ' + to };
+      if (!resp.ok) {
+        const respBody = await resp.text().catch(() => '');
+        log('钉钉发送失败: HTTP ' + resp.status + ' ' + respBody.slice(0, 300));
+        return { ok: false, error: '钉钉发送失败: HTTP ' + resp.status };
+      }
+      return { ok: true, note: '已发送(经会话 webhook)' };
     } catch (e) {
       return { ok: false, error: e.message };
     }
