@@ -24,11 +24,12 @@ import { createChannel as createWechatChannel } from './src/channels/wechat.mjs'
 import { createChannel as createFeishuChannel } from './src/channels/feishu.mjs';
 
 // 全部通道工厂(供启动时启用 + 维护页运行时动态启停)
+// 顺序:微信、企微、飞书、钉钉(与维护页一致)
 const channelFactories = {
-  wecom: createWecomChannel,
-  dingtalk: createDingtalkChannel,
   wechat: createWechatChannel,
+  wecom: createWecomChannel,
   feishu: createFeishuChannel,
+  dingtalk: createDingtalkChannel,
 };
 
 const BRIDGE_DIR = path.dirname(fileURLToPath(import.meta.url));

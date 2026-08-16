@@ -85,18 +85,6 @@ function buildConfig() {
     globalAllowlist: splitList(pick('', 'ALLOWLIST')),
 
     channels: {
-      wecom: {
-        botId: pick('bot-id', 'WECOM_BOT_ID'),
-        secret: pick('secret', 'WECOM_BOT_SECRET'),
-        allowlist: splitList(pick('', 'WECOM_ALLOWLIST')),
-        allowChatIds: splitList(pick('', 'WECOM_ALLOW_CHATIDS')),
-      },
-      dingtalk: {
-        clientId: pick('client-id', 'DINGTALK_CLIENT_ID'),
-        clientSecret: pick('client-secret', 'DINGTALK_CLIENT_SECRET'),
-        allowlist: splitList(pick('', 'DINGTALK_ALLOWLIST')),
-        allowChatIds: splitList(pick('', 'DINGTALK_ALLOW_CHATIDS')),
-      },
       wechat: {
         baseUrl: pick('', 'WECHAT_BASE_URL') || 'https://ilinkai.weixin.qq.com',
         accountsDir: pick('', 'WECHAT_ACCOUNTS_DIR'),
@@ -104,11 +92,23 @@ function buildConfig() {
         allowlist: splitList(pick('', 'WECHAT_ALLOWLIST')),
         allowChatIds: splitList(pick('', 'WECHAT_ALLOW_CHATIDS')),
       },
+      wecom: {
+        botId: pick('bot-id', 'WECOM_BOT_ID'),
+        secret: pick('secret', 'WECOM_BOT_SECRET'),
+        allowlist: splitList(pick('', 'WECOM_ALLOWLIST')),
+        allowChatIds: splitList(pick('', 'WECOM_ALLOW_CHATIDS')),
+      },
       feishu: {
         appId: pick('', 'FEISHU_APP_ID'),
         appSecret: pick('', 'FEISHU_APP_SECRET'),
         allowlist: splitList(pick('', 'FEISHU_ALLOWLIST')),
         allowChatIds: splitList(pick('', 'FEISHU_ALLOW_CHATIDS')),
+      },
+      dingtalk: {
+        clientId: pick('client-id', 'DINGTALK_CLIENT_ID'),
+        clientSecret: pick('client-secret', 'DINGTALK_CLIENT_SECRET'),
+        allowlist: splitList(pick('', 'DINGTALK_ALLOWLIST')),
+        allowChatIds: splitList(pick('', 'DINGTALK_ALLOW_CHATIDS')),
       },
     },
 

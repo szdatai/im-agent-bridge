@@ -16,10 +16,10 @@ IM message (long connection) ─▶ bridge.mjs ─▶ claude-agent-sdk query() �
 
 | Channel | SDK | Connection | Credentials |
 |---|---|---|---|
-| WeCom | `@wecom/aibot-node-sdk` | WebSocket long connection | BotID + Secret |
-| DingTalk | `dingtalk-stream` | Stream-mode long connection | AppKey + AppSecret |
 | WeChat | iLink protocol (account files) | Long-polling `getupdates` | QR-login account files |
+| WeCom | `@wecom/aibot-node-sdk` | WebSocket long connection | BotID + Secret |
 | Feishu / Lark | `@larksuiteoapi/node-sdk` | WebSocket long connection | App ID + App Secret |
+| DingTalk | `dingtalk-stream` | Stream-mode long connection | AppKey + AppSecret |
 
 `ENABLED_CHANNELS` controls which channels are loaded. Channels without credentials are skipped automatically and do not affect the others.
 

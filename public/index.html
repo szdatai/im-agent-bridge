@@ -117,7 +117,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-var CH = ['wecom', 'dingtalk', 'wechat', 'feishu'];
+var CH = ['wechat', 'wecom', 'feishu', 'dingtalk'];
 var LAST_CONFIG = null;
 
 function toast(msg, ms) {
@@ -283,6 +283,11 @@ function restart() {
 }
 
 function v(id) { return document.getElementById(id).value.trim(); }
+
+// 通道卡片顺序:微信、企微、飞书、钉钉
+['wechat', 'wecom', 'feishu', 'dingtalk'].forEach(function(id) {
+  document.getElementById('grid').appendChild(document.getElementById('card-' + id));
+});
 
 loadStatus();
 loadConfig();

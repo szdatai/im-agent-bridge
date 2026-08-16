@@ -18,10 +18,10 @@ IM 消息(长连接) ──▶ bridge.mjs ──▶ claude-agent-sdk query() ─
 
 | 通道 | SDK | 连接方式 | 凭据 |
 |---|---|---|---|
-| 企微 wecom | `@wecom/aibot-node-sdk` | WebSocket 长连接 | BotID + Secret |
-| 钉钉 dingtalk | `dingtalk-stream` | Stream 模式长连接 | AppKey + AppSecret |
 | 微信 wechat | iLink 协议(账号文件) | 长轮询 getupdates | 扫码登录账号文件 |
+| 企微 wecom | `@wecom/aibot-node-sdk` | WebSocket 长连接 | BotID + Secret |
 | 飞书 feishu | `@larksuiteoapi/node-sdk` | WebSocket 长连接 | App ID + App Secret |
+| 钉钉 dingtalk | `dingtalk-stream` | Stream 模式长连接 | AppKey + AppSecret |
 
 `ENABLED_CHANNELS` 控制启用哪些通道;未配置凭据的通道自动跳过,不影响其他通道。
 
