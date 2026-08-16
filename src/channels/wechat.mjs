@@ -237,7 +237,8 @@ export function createChannel({ cfg, core }) {
           }
         }
       } catch (err) {
-        if (err.name !== 'AbortError') {
+        // AbortSignal.timeout() 产生的是 TimeoutError(非 AbortError),属于长轮询正常超时,不计入 retry
+        if (err.name !== 'AbortError' && err.name !== 'TimeoutError') {
           accLog(this.acc.id, '轮询异常: ' + err.message);
           this.retry++;
         }
