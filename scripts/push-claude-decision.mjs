@@ -19,10 +19,12 @@ try { hook = JSON.parse(fs.readFileSync(0, 'utf8')); } catch {}
 const ev = hook.hook_event_name;
 
 let text = '';
-if (ev === 'AskUserQuestion') {
-  const q = hook.tool_input?.question || 'Claude 需要你决策';
-  const opts = (hook.tool_input?.options || [])
-    .map((o) => o.label)
+if (ev === 'AskUserQuestion' || ev === 'Elicitation') {
+  // 兼容 AskUserQuestion(旧)与 Elicitation(新命名,当前版本)
+  const ti = hook.tool_input || {};
+  const q = ti.question || hook.question || 'Claude 需要你决策';
+  const opts = (ti.options || hook.options || [])
+    .map((o) => o.label || o.text)
     .filter(Boolean)
     .slice(0, 4)
     .join(' / ');
