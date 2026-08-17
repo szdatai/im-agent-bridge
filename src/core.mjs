@@ -42,6 +42,16 @@ export function createCore({ cfg: initialCfg, anthropicEnv, model, inboxDir, pro
       } catch {}
     }, 1000);
   }
+  // 通道启停状态持久化:用户停止/启动的通道,重启后保持该状态
+  const CHANNELS_STATE_FILE = path.join(projectDir || process.cwd(), 'state', 'channels.json');
+  let channelsState = {};
+  try { channelsState = JSON.parse(fs.readFileSync(CHANNELS_STATE_FILE, 'utf8')); } catch {}
+  function saveChannelsState() {
+    try {
+      fs.mkdirSync(path.dirname(CHANNELS_STATE_FILE), { recursive: true });
+      fs.writeFileSync(CHANNELS_STATE_FILE, JSON.stringify(channelsState, null, 2), 'utf8');
+    } catch {}
+  }
   const activeAborts = new Set();
   const channels = new Map();
 
@@ -191,6 +201,10 @@ export function createCore({ cfg: initialCfg, anthropicEnv, model, inboxDir, pro
 
   async function start() {
     for (const ch of channels.values()) {
+      if (channelsState[ch.name] === 'stopped') {
+        console.log('[core] 通道 ' + ch.name + ' 处于「已停止」状态,跳过启动(可在维护页启动)');
+        continue;
+      }
       try {
         await ch.start();
         console.log('[core] 通道 ' + ch.name + ' 已启动');
@@ -212,6 +226,10 @@ export function createCore({ cfg: initialCfg, anthropicEnv, model, inboxDir, pro
     for (const name of Object.keys(channelFactories)) {
       const ch = channels.get(name);
       const configured = isChannelConfigured(name);
+      if (channelsState[name] === 'stopped') {
+        per[name] = { status: 'stopped', enabled: configured, running: false };
+        continue;
+      }
       if (ch) {
         const st = ch.status ? ch.status() : 'unknown';
         per[name] = { status: st, enabled: true, running: st === 'connected' };
@@ -242,23 +260,32 @@ export function createCore({ cfg: initialCfg, anthropicEnv, model, inboxDir, pro
   async function startChannel(name) {
     const existing = channels.get(name);
     if (existing) {
-      try { await existing.start(); return { ok: true, note: '已重新启动' }; }
-      catch (e) { return { ok: false, error: e.message }; }
+      try {
+        await existing.start();
+        channelsState[name] = 'started'; saveChannelsState(); // 持久化「已启动」
+        return { ok: true, note: '已重新启动' };
+      } catch (e) { return { ok: false, error: e.message }; }
     }
     const factory = channelFactories[name];
     if (!factory) return { ok: false, error: '未知通道 ' + name };
     const ch = factory({ cfg, core });
     if (!ch.enabled) return { ok: false, error: '未配置完整凭据,请先在维护页填写并保存' };
     register(ch);
-    try { await ch.start(); return { ok: true, note: '已启动' }; }
-    catch (e) { return { ok: false, error: e.message }; }
+    try {
+      await ch.start();
+      channelsState[name] = 'started'; saveChannelsState(); // 持久化「已启动」
+      return { ok: true, note: '已启动' };
+    } catch (e) { return { ok: false, error: e.message }; }
   }
 
   function stopChannel(name) {
     const ch = channels.get(name);
     if (!ch) return { ok: false, error: '通道未运行' };
-    try { ch.stop(); return { ok: true, note: '已停止' }; }
-    catch (e) { return { ok: false, error: e.message }; }
+    try {
+      ch.stop();
+      channelsState[name] = 'stopped'; saveChannelsState(); // 持久化「已停止」
+      return { ok: true, note: '已停止' };
+    } catch (e) { return { ok: false, error: e.message }; }
   }
 
   // 微信 iLink 会话过期(账号被清理)时,经其他已配置通道提醒用户重新扫码(1 小时冷却)
