@@ -138,11 +138,12 @@ export function reloadConfig() {
   return buildConfig();
 }
 
-// 模型认证:真实环境变量/.env 优先,settings.json 兜底;只透传 ANTHROPIC_* 键
+// 模型认证:桥自身 .env 优先(固化供应商,不被拉起它的 Claude Code 会话环境带跑),
+// 真实环境变量次之(通常继承自启动会话、随 CC Switch 切换而变),settings.json 兜底。
 function resolveAnthropicEnv() {
   const envFile = readDotEnvFile();
   const merged = readAnthropicFromUserSettings();
-  for (const src of [envFile, process.env]) {
+  for (const src of [process.env, envFile]) {
     for (const [k, v] of Object.entries(src)) {
       if (k.startsWith('ANTHROPIC_') && typeof v === 'string' && v) merged[k] = v;
     }

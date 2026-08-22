@@ -17,11 +17,12 @@ const DEFAULT_SETTINGS_PATH = path.join(os.homedir(), '.claude', 'settings.json'
 const AUTO_MARKER = 'im-agent-bridge/scripts/autostart.mjs';
 
 /**
- * 确保全局 settings.json 已注册本项目的自动启动 hook。
- * @param {string} [settingsPath] 覆盖设置文件路径(测试用),默认 ~/.claude/settings.json
- * @returns {Promise<{changed: boolean, reason: string}>}
+ * 在指定 settings 文件里确保本项目的自动启动 hook 已注册(幂等)。
+ * 全局 ~/.claude/settings.json 会被 CC Switch 等供应商切换工具整体重写而抹掉 hook,
+ * 因此项目级 settings.local.json 也要注册:任何一方存活都能在会话启动时拉起 bridge,
+ * 而 bridge 每次启动又会把两个文件都补全(自愈)。
  */
-export async function ensureGlobalAutoStart(settingsPath = DEFAULT_SETTINGS_PATH) {
+async function ensureSessionStartHookIn(settingsPath) {
   const autoStartPath = path.join(BRIDGE_DIR, 'scripts', 'autostart.mjs');
   const command = 'node ' + autoStartPath.replace(/\\/g, '/');
 
@@ -65,5 +66,25 @@ export async function ensureGlobalAutoStart(settingsPath = DEFAULT_SETTINGS_PATH
     fs.copyFileSync(settingsPath, settingsPath + '.bak'); // 修改前留备份
   }
   fs.writeFileSync(settingsPath, json, 'utf8');
-  return { changed: true, reason: '已写入全局 SessionStart hook: ' + command };
+  return { changed: true, reason: '已写入 SessionStart hook: ' + command };
+}
+
+/**
+ * 确保全局 settings.json 已注册本项目的自动启动 hook。
+ * @param {string} [settingsPath] 覆盖设置文件路径(测试用),默认 ~/.claude/settings.json
+ * @returns {Promise<{changed: boolean, reason: string}>}
+ */
+export async function ensureGlobalAutoStart(settingsPath = DEFAULT_SETTINGS_PATH) {
+  return ensureSessionStartHookIn(settingsPath);
+}
+
+/**
+ * 确保项目级 settings.local.json(工作目录)已注册自动启动 hook。
+ * CC Switch 等工具只重写全局 settings.json,不碰项目级文件——这是 hook 的保险落点。
+ * @param {string} projectDir 项目根目录(桥的 WORK_DIR)
+ * @returns {Promise<{changed: boolean, reason: string}>}
+ */
+export async function ensureProjectAutoStart(projectDir) {
+  if (!projectDir) return { changed: false, reason: '无 WORK_DIR,跳过项目级注册' };
+  return ensureSessionStartHookIn(path.join(projectDir, '.claude', 'settings.local.json'));
 }

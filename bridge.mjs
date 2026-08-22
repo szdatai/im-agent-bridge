@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 import { CFG, anthropicEnv, model, reloadConfig } from './src/config.mjs';
 import { createCore } from './src/core.mjs';
 import { startAdminServer } from './src/admin.mjs';
-import { ensureGlobalAutoStart } from './src/autoregister.mjs';
+import { ensureGlobalAutoStart, ensureProjectAutoStart } from './src/autoregister.mjs';
 import { createChannel as createWecomChannel } from './src/channels/wecom.mjs';
 import { createChannel as createDingtalkChannel } from './src/channels/dingtalk.mjs';
 import { createChannel as createWechatChannel } from './src/channels/wechat.mjs';
@@ -37,9 +37,14 @@ const INBOX_DIR = path.join(BRIDGE_DIR, 'inbox');
 fs.mkdirSync(INBOX_DIR, { recursive: true });
 
 // ── 自注册全局自动启动 hook(幂等,失败不影响运行)──
+// 全局 hook 会被 CC Switch 切供应商时重写 settings.json 而抹掉,故同时注册到
+// 项目级 settings.local.json(WORK_DIR),两者任一存活都能在会话启动时拉起桥。
 ensureGlobalAutoStart()
   .then((r) => console.log('[bridge] 自动启动自注册: ' + r.reason))
   .catch((err) => console.warn('[bridge] 自动启动自注册失败(不影响运行): ' + err.message));
+ensureProjectAutoStart(CFG.workDir)
+  .then((r) => console.log('[bridge] 项目级自启动注册: ' + r.reason))
+  .catch((err) => console.warn('[bridge] 项目级自启动注册失败(不影响运行): ' + err.message));
 
 const AGENT_LABEL = (() => {
   try {
