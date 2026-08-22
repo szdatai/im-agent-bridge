@@ -12,9 +12,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { chunkUtf8 } from '../claude.mjs';
 
 const PROJECT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const CHANNEL_VERSION = '2.4.6';
+const MAX_BYTES = 4000; // 微信单条文本约 5KB,取 4000 字节保守分块,避免超限被静默截断
 const ILINK_APP_CLIENT_VERSION = String(
   (() => {
     const [major, minor, patch] = CHANNEL_VERSION.split('.').map(Number);
@@ -248,26 +250,34 @@ export function createChannel({ cfg, core }) {
     }
 
     async sendMsg(toUser, ctxToken, text) {
-      try {
-        const resp = await fetch(this.base() + '/ilink/bot/sendmessage', {
-          method: 'POST',
-          headers: this.getHeaders(),
-          body: JSON.stringify({
-            msg: {
-              from_user_id: '',
-              to_user_id: toUser,
-              client_id: 'datai-agent-bridge-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6),
-              message_type: 2,
-              message_state: 2,
-              item_list: [{ type: 1, text_item: { text } }],
-              context_token: ctxToken || undefined,
-            },
-            base_info: { channel_version: CHANNEL_VERSION, bot_agent: 'datai-agent-bridge' },
-          }),
-        });
-        if (!resp.ok) accLog(this.acc.id, 'sendMsg 失败: HTTP ' + resp.status);
-      } catch (err) {
-        accLog(this.acc.id, 'sendMsg 异常: ' + err.message);
+      const parts = chunkUtf8(text, MAX_BYTES);
+      for (let i = 0; i < parts.length; i++) {
+        try {
+          const resp = await fetch(this.base() + '/ilink/bot/sendmessage', {
+            method: 'POST',
+            headers: this.getHeaders(),
+            body: JSON.stringify({
+              msg: {
+                from_user_id: '',
+                to_user_id: toUser,
+                client_id: 'datai-agent-bridge-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6),
+                message_type: 2,
+                message_state: 2,
+                item_list: [{ type: 1, text_item: { text: parts[i] } }],
+                // 回复上下文 token 只挂第一块;后续块是独立的新消息
+                context_token: i === 0 ? (ctxToken || undefined) : undefined,
+              },
+              base_info: { channel_version: CHANNEL_VERSION, bot_agent: 'datai-agent-bridge' },
+            }),
+          });
+          if (!resp.ok) {
+            accLog(this.acc.id, 'sendMsg 失败: HTTP ' + resp.status);
+            break;
+          }
+        } catch (err) {
+          accLog(this.acc.id, 'sendMsg 异常: ' + err.message);
+          break;
+        }
       }
     }
   }

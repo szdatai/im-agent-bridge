@@ -11,11 +11,13 @@
  */
 import path from 'node:path';
 import * as lark from '@larksuiteoapi/node-sdk';
+import { chunkUtf8 } from '../claude.mjs';
 
 export function createChannel({ cfg, core }) {
   const c = cfg.channels.feishu;
   const name = 'feishu';
   const enabled = !!(c.appId && c.appSecret);
+  const MAX_BYTES = 150000; // 飞书 text 内容上限约 150KB,取 150000 字节保守分块
 
   let client = null;
   let wsClient = null;
@@ -27,11 +29,28 @@ export function createChannel({ cfg, core }) {
     try { return JSON.parse(content || '{}'); } catch { return {}; }
   }
 
-  async function sendReply(messageId, content) {
-    await client.im.v1.message.reply({
-      path: { message_id: messageId },
-      data: { msg_type: 'text', content: JSON.stringify({ text: content }) },
-    });
+  async function sendReply(messageId, chatId, content) {
+    const parts = chunkUtf8(content, MAX_BYTES);
+    for (let i = 0; i < parts.length; i++) {
+      if (i === 0) {
+        // 第一块:回复语义
+        await client.im.v1.message.reply({
+          path: { message_id: messageId },
+          data: { msg_type: 'text', content: JSON.stringify({ text: parts[i] }) },
+        });
+      } else if (chatId) {
+        // 续块:发到会话的新消息(避免对同一消息多次回复被限)
+        await client.im.v1.message.create({
+          params: { receive_id_type: 'chat_id' },
+          data: { receive_id: chatId, msg_type: 'text', content: JSON.stringify({ text: parts[i] }) },
+        });
+      } else {
+        await client.im.v1.message.reply({
+          path: { message_id: messageId },
+          data: { msg_type: 'text', content: JSON.stringify({ text: parts[i] }) },
+        });
+      }
+    }
   }
 
   async function handleReceive(data) {
@@ -74,7 +93,7 @@ export function createChannel({ cfg, core }) {
     if (!text && !attachment) return;
     await core.handleMessage({
       channel: name, senderId, chatId, chatType, text, attachment,
-      reply: (content) => sendReply(messageId, content),
+      reply: (content) => sendReply(messageId, chatId, content),
       log,
     });
   }
@@ -104,14 +123,16 @@ export function createChannel({ cfg, core }) {
     return isConnected ? 'connected' : 'disconnected';
   }
 
-  // 主动推送:向指定 receive_id(chat_id/open_id)发消息
+  // 主动推送:向指定 receive_id(chat_id/open_id)发消息,超长分块
   async function send(to, text) {
     if (!client) return { ok: false, error: '飞书未连接' };
     try {
-      await client.im.v1.message.create({
-        params: { receive_id_type: 'chat_id' },
-        data: { receive_id: to, msg_type: 'text', content: JSON.stringify({ text }) },
-      });
+      for (const part of chunkUtf8(text, MAX_BYTES)) {
+        await client.im.v1.message.create({
+          params: { receive_id_type: 'chat_id' },
+          data: { receive_id: to, msg_type: 'text', content: JSON.stringify({ text: part }) },
+        });
+      }
       return { ok: true, note: '已发送到 ' + to };
     } catch (e) {
       return { ok: false, error: e.message };

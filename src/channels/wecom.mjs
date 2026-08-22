@@ -7,11 +7,13 @@
  */
 import path from 'node:path';
 import { WSClient, generateReqId } from '@wecom/aibot-node-sdk';
+import { chunkUtf8 } from '../claude.mjs';
 
 export function createChannel({ cfg, core }) {
   const c = cfg.channels.wecom;
   const name = 'wecom';
   const enabled = !!(c.botId && c.secret);
+  const MAX_BYTES = 2000; // 企微 markdown 消息 content 约 2048 字节,取 2000 保守分块
 
   let client = null;
   let isConnected = false;
@@ -19,15 +21,34 @@ export function createChannel({ cfg, core }) {
   function log(msg) { console.log('[' + name + '] ' + msg); }
 
   async function replyWithRetry(frame, content) {
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      if (!client) return;
-      try {
-        await client.replyStream(frame, generateReqId('stream'), content, true);
-        return;
-      } catch (err) {
-        if (attempt === 3) { log('回复失败(重试 3 次后放弃): ' + err.message); return; }
-        await new Promise((r) => setTimeout(r, 5000 * attempt));
+    const parts = chunkUtf8(content, MAX_BYTES);
+    for (let i = 0; i < parts.length; i++) {
+      // 超长回复:第一块走回复流(维持回复语义),续块走 sendMessage 新消息——
+      // 企微回复协议可能只允许一次,新消息最可靠,且避免单条超限被截断尾部。
+      if (i > 0 && client) {
+        const chatTarget = frame.body?.chatid || frame.body?.chat_id || frame.body?.from?.userid;
+        if (chatTarget) {
+          try {
+            await client.sendMessage(chatTarget, { msgtype: 'markdown', markdown: { content: parts[i] } });
+            continue;
+          } catch (e) {
+            log('长回复续块发送失败: ' + e.message);
+          }
+        }
       }
+      let ok = false;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        if (!client) return;
+        try {
+          await client.replyStream(frame, generateReqId('stream'), parts[i], true);
+          ok = true;
+          break;
+        } catch (err) {
+          if (attempt === 3) { log('回复失败(重试 3 次后放弃): ' + err.message); return; }
+          await new Promise((r) => setTimeout(r, 5000 * attempt));
+        }
+      }
+      if (!ok) return;
     }
   }
 
@@ -125,7 +146,9 @@ export function createChannel({ cfg, core }) {
   async function send(to, text) {
     if (!client) return { ok: false, error: '企微未连接' };
     try {
-      await client.sendMessage(to, { msgtype: 'markdown', markdown: { content: text } });
+      for (const part of chunkUtf8(text, MAX_BYTES)) {
+        await client.sendMessage(to, { msgtype: 'markdown', markdown: { content: part } });
+      }
       return { ok: true, note: '已发送到 ' + to };
     } catch (e) {
       return { ok: false, error: e.message };

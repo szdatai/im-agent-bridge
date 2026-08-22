@@ -174,3 +174,30 @@ export function truncateUtf8(str, maxBytes) {
   while (end > 0 && (buf[end] & 0xc0) === 0x80) end--;
   return buf.subarray(0, end).toString('utf8') + '\n\n…(回复过长,已截断)';
 }
+
+/**
+ * UTF-8 安全分块:按字节上限把长文本切成多条(每条独立消息)。
+ * IM 平台(企微 markdown ~2048B、微信 ~5KB 等)对单条消息有长度上限,
+ * 超出会静默截断尾部并丢失内容;发送前分块可保证全文送达。
+ * @param {string} text 原文
+ * @param {number} maxBytes 每块最大字节数
+ * @returns {string[]} 分块数组(原文本不超限时返回 [text])
+ */
+export function chunkUtf8(text, maxBytes) {
+  if (text == null) return [];
+  const s = String(text);
+  if (!s) return [s];
+  const buf = Buffer.from(s, 'utf8');
+  if (buf.length <= maxBytes) return [s];
+  const out = [];
+  let start = 0;
+  while (start < buf.length) {
+    let end = Math.min(start + maxBytes, buf.length);
+    // 回退到 UTF-8 字符边界,避免劈开汉字
+    while (end > start && (buf[end] & 0xc0) === 0x80) end--;
+    if (end <= start) end = Math.min(start + maxBytes, buf.length); // 防呆:单字符超限也不死循环
+    out.push(buf.subarray(start, end).toString('utf8'));
+    start = end;
+  }
+  return out;
+}

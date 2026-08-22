@@ -8,6 +8,9 @@
  */
 import path from 'node:path';
 import { DWClient, TOPIC_ROBOT } from 'dingtalk-stream';
+import { chunkUtf8 } from '../claude.mjs';
+
+const MAX_BYTES = 15000; // 钉钉 text content 上限约 20000 字符,取 15000 字节保守分块
 
 // DingTalk 文件下载 REST API(优先 /v1.0/robot/messageFiles/download)
 async function downloadDingTalkMedia(downloadCode, robotCode, accessToken) {
@@ -75,20 +78,23 @@ export function createChannel({ cfg, core }) {
       }
       if (data.sessionWebhook) lastSessionWebhook = data.sessionWebhook; // 记住会话 webhook,供主动推送复用
 
-      // 回复(一次性)+ 确认已处理(防钉钉重推)
+      // 回复(分块发送,超长按块拆成多条)+ 全部发完再确认(防钉钉重推)
       const reply = async (content) => {
         if (!messageId) return;
+        const parts = chunkUtf8(content, MAX_BYTES);
         let respData = {};
         try {
           if (sessionWebhook) {
             const accessToken = await client.getAccessToken();
-            const resp = await fetch(sessionWebhook, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'x-acs-dingtalk-access-token': accessToken },
-              body: JSON.stringify({ msgtype: 'text', text: { content } }),
-              signal: AbortSignal.timeout(15000),
-            });
-            if (resp.ok) respData = await resp.json().catch(() => ({}));
+            for (const part of parts) {
+              const resp = await fetch(sessionWebhook, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-acs-dingtalk-access-token': accessToken },
+                body: JSON.stringify({ msgtype: 'text', text: { content: part } }),
+                signal: AbortSignal.timeout(15000),
+              });
+              if (resp.ok) respData = await resp.json().catch(() => ({}));
+            }
           }
         } catch (e) {
           log('回复发送失败: ' + e.message);
@@ -165,16 +171,18 @@ export function createChannel({ cfg, core }) {
     if (!lastSessionWebhook) return { ok: false, error: '尚未捕获钉钉会话 webhook(请先给机器人发一条消息)' };
     try {
       const accessToken = await client.getAccessToken();
-      const resp = await fetch(lastSessionWebhook, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-acs-dingtalk-access-token': accessToken },
-        body: JSON.stringify({ msgtype: 'text', text: { content: text } }),
-        signal: AbortSignal.timeout(15000),
-      });
-      if (!resp.ok) {
-        const respBody = await resp.text().catch(() => '');
-        log('钉钉发送失败: HTTP ' + resp.status + ' ' + respBody.slice(0, 300));
-        return { ok: false, error: '钉钉发送失败: HTTP ' + resp.status };
+      for (const part of chunkUtf8(text, MAX_BYTES)) {
+        const resp = await fetch(lastSessionWebhook, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-acs-dingtalk-access-token': accessToken },
+          body: JSON.stringify({ msgtype: 'text', text: { content: part } }),
+          signal: AbortSignal.timeout(15000),
+        });
+        if (!resp.ok) {
+          const respBody = await resp.text().catch(() => '');
+          log('钉钉发送失败: HTTP ' + resp.status + ' ' + respBody.slice(0, 300));
+          return { ok: false, error: '钉钉发送失败: HTTP ' + resp.status };
+        }
       }
       return { ok: true, note: '已发送(经会话 webhook)' };
     } catch (e) {
